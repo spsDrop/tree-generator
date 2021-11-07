@@ -37,7 +37,7 @@ const sliderStyle = css`
     }
 
     b {
-        color: rgba(140, 151, 136, 1);
+        color: #2d302c;
     }
 `;
 
