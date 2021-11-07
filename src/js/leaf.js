@@ -1,4 +1,4 @@
-var T = window.THREE;
+var T = require('../../lib/three.js');
 var Utils = require('./utils');
 
 var Leaf = function(){
@@ -11,6 +11,7 @@ var Leaf = function(){
     this.geometry = this.generateGeometry();
     leaf = new T.Mesh( this.geometry, material );
     leafObj.add(leaf);
+    this.obj = leaf;
 };
 
 Leaf.prototype = {
@@ -28,6 +29,11 @@ Leaf.prototype = {
         geometry.vertices.push(new T.Vector3(1.5,0.15,-0.75));
 
         geometry.vertices.push(new T.Vector3(2.5,-0.25,0));
+
+        this.generateFaces(0, geometry);
+        
+        geometry.computeFaceNormals();
+        geometry.computeVertexNormals();
 
         return geometry;
     },

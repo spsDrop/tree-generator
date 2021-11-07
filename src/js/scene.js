@@ -1,4 +1,4 @@
-var T = window.THREE;
+var T = require('../../lib/three.js');
 var Tree = require('./tree');
 var Leaf = require('./leaf');
 
@@ -20,30 +20,32 @@ TreeScene.prototype = {
         light.position.set(5, 7, 10);
         this.scene.add(light);
 
-        var camera =
-            this.camera =
+        this.camera =
                 new T.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(20, 22, 20);
-        camera.lookAt(new T.Vector3(0, 10, 0));
+        this.camera.position.set(20, 22, 20);
+        this.camera.lookAt(new T.Vector3(0, 10, 0));
     },
 
     generateTree: function(settings){
+        let rotation = 0;
         if(this.tree){
-            this.scene.remove(this.tree);
-            this.disposeObject(this.tree);
+            rotation = this.tree.obj.rotation.y;
+            this.scene.remove(this.tree.obj);
+            this.disposeObjectTree(this.tree.obj);
             this.tree = null;
         }
 
         this.tree = new Tree(settings);
+        this.tree.obj.rotation.y = rotation;
 
-        this.tree.position.y = -10;
-        this.scene.add( this.tree );
+        this.tree.obj.position.y = -10;
+        this.scene.add( this.tree.obj );
     },
 
-    disposeObject: function(obj){
+    disposeObjectTree: function(obj){
         obj.children.forEach((child)=>{
             if(child.children){
-                this.disposeObject(child);
+                this.disposeObjectTree(child);
             }else{
                 child.geometry.dispose();
                 child.material.dispose();
@@ -53,7 +55,7 @@ TreeScene.prototype = {
 
     render: function render() {
         if(this.tree) {
-            this.tree.rotation.y += 0.01;
+            this.tree.obj.rotation.y += 0.01;
         }
 
         requestAnimationFrame(this.render.bind(this));

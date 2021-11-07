@@ -1,16 +1,70 @@
-let React = require('react');
-let ReactSlider = require('react-slider');
+/** @jsx jsx */
+import { jsx } from '@emotion/react';
+const { css } = require("@emotion/react");
+const React = require('react');
+const { default: ReactSlider } = require('react-slider');
 
-let TreeUI = React.createClass({
+const sliderStyle = css`
+    .slider {
+        height: 1rem;
+        .track {
+            height: 0.5rem;
+            background: rgba(140, 151, 136, 0.45);
+            top: 0.25rem;
+        }
+        .thumb {
+            top: 0.1275rem;
+            height: 0.75rem;
+            width: 0.75rem;
+            background: rgba(140, 151, 136, 1);
+            cursor: pointer;
+        }
+    }
+`;
 
-    getInitialState: function(){
-        var savedSettings,
+function defaultSettings(){
+    return  {
+        seed: 0.013824013294652104,
+
+        doLeaves: true,
+        leafBranchDepth: 6,
+        leafScaleFactor: 1,
+        leafRelativeScaleFactor: 0.5,
+
+        trunkRotationX: 15,
+        trunkRotationY: 45,
+        trunkRotationZ: 25,
+        branchRotationX: 40,
+        branchRotationY: 45,
+        branchRotationZ: 60,
+
+        trunkLengthDecay: 0.2,
+        branchLengthDecay: 0.2,
+        trunkRadiusDecay: 0.04,
+        branchRadiusDecay: 0.06,
+        branchRadiusDecayPerSegment: 0.08,
+
+        branchDepth: 9,
+        segmentsPerBranch: 5,
+        segmentLength: 2,
+        sectionsPerSegment: 12,
+        initialRadius: 1,
+        hidden: false
+    };
+};
+
+export default class TreeUI extends React.Component{
+
+    constructor(props){
+        super(props);
+        let savedSettings,
             match = location.hash.match(/#settings=(.+)/);
 
         try{
             savedSettings = JSON.parse(localStorage.treeGeneratorSettings);
         }catch(e){
             console.log("Error retrieving settings");
+            savedSettings = defaultSettings();
         }
 
         if(match && match[0]){
@@ -27,47 +81,12 @@ let TreeUI = React.createClass({
             savedSettings.leafRelativeScaleFactor = savedSettings.leafRelativeScaleFactor || 0.5;
         }
 
-        return savedSettings || this.defaultSettings;
-    },
+        this.state = savedSettings;
+    }
 
-    get defaultSettings(){
-        return  {
-            seed: 0.013824013294652104,
+    
 
-            doLeaves: true,
-            leafBranchDepth: 6,
-            leafScaleFactor: 1,
-            leafRelativeScaleFactor: 0.5,
-
-            trunkRotationX: 15,
-            trunkRotationXSeedMultiplier: 0,
-            trunkRotationY: 45,
-            trunkRotationYSeedMultiplier: 1,
-            trunkRotationZ: 25,
-            trunkRotationZSeedMultiplier: 1,
-            branchRotationX: -40,
-            branchRotationXSeedMultiplier: 0,
-            branchRotationY: 45,
-            branchRotationYSeedMultiplier: -1,
-            branchRotationZ: 60,
-            branchRotationZSeedMultiplier: -1,
-
-            trunkLengthDecay: 0.2,
-            branchLengthDecay: 0.2,
-            trunkRadiusDecay: 0.04,
-            branchRadiusDecay: 0.06,
-            branchRadiusDecayPerSegment: 0.08,
-
-            branchDepth: 9,
-            segmentsPerBranch: 5,
-            segmentLength: 2,
-            sectionsPerSegment: 12,
-            initialRadius: 1,
-            hidden: false
-        };
-    },
-
-    ranges:{
+    ranges = {
         rotation:{ max: 90, min: -90 },
         multiplier:{ max: 1, min: -1 },
         length:{ max: 3, min: 1 },
@@ -75,25 +94,25 @@ let TreeUI = React.createClass({
         depth:{ max:12, min:3 },
         segments:{ max: 8, min: 2 },
         sections:{ max: 20, min: 4 }
-    },
+    }
 
-    saveSettings: function(){
-        var json = JSON.stringify(this.state);
+    saveSettings(){
+        const json = JSON.stringify(this.state);
         localStorage.treeGeneratorSettings = json;
         location.hash = "settings="+btoa(json);
-    },
+    }
 
-    reset: function(){
+    reset(){
         if(confirm("This will completely reset your settings")){
-            this.setState(this.defaultSettings, ()=>{
+            this.setState(defaultSettings(), ()=>{
                 this.saveSettings();
                 this.updateTree();
             })
         }
-    },
+    }
 
-    updateProp: function(propName, value, cb){
-        var update = {};
+    updateProp(propName, value, cb){
+        const update = {};
 
         update[propName] = value;
 
@@ -101,46 +120,67 @@ let TreeUI = React.createClass({
             this.saveSettings();
             cb && cb();
         });
-    },
+    }
 
-    updateIntProp: function(propName, value, cb){
+    updateIntProp(propName, value, cb){
         this.updateProp(propName, Math.round(value), cb);
-    },
+    }
 
-    updateTree: function(){
+    updateTree(){
         this.props.treeScene.generateTree(this.state);
-    },
+    }
 
-    componentDidMount:function(){
+    componentDidMount(){
         this.updateTree();
-    },
+        this.props.treeScene.render();
+    }
 
-    renderSlider: function(prop, defaults, float){
-        var update = float ? this.updateProp : this.updateIntProp;
-        return <div className="property">
-            <label>{prop}: <b>{this.state[prop]}</b></label>
-            <ReactSlider step={float ? 0.01 : 1} onAfterChange={this.updateTree} onChange={update.bind(this, prop)} value={this.state[prop]} {...defaults}/>
-        </div>;
-    },
+    renderSlider(prop, defaults, float){
+        const update = (value) => {
+            if (float) {
+                this.updateProp(prop, value, () => this.updateTree())
+            } else {
+                this.updateIntProp(prop, value, () => this.updateTree())
+            }
+        }; 
+        return (
+            <div className="property" css={sliderStyle}>
+                <label>{prop}: <b>{this.state[prop]}</b></label>
+                <ReactSlider step={float ? 0.01 : 1} onAfterChange={this.handleUpdateTree} onChange={update} value={this.state[prop]} {...defaults}/>
+            </div>
+        );
+    }
 
-    toggle: function(){
+    toggle = () => {
         this.setState({
             hidden: !this.state.hidden
         })
-    },
+    }
 
-    render: function(){
+    handleUpdateTree = () => {
+        this.updateTree();
+    }
+
+    handleNewSeed = () => {
+        this.updateProp("seed", Math.random(), () => this.updateTree())
+    }
+
+    handleReset = () => {
+        this.reset()
+    }
+
+    render(){
         return <div>
             <div className={"toggle" + (this.state.hidden ? " hidden" : "")} onClick={this.toggle}>
                 {this.state.hidden ? 'Show Settings' : 'Hide Settings' }
             </div>
             <div className={"controls" + (this.state.hidden ? " hidden" : "")}>
                 <div className="section">
-                    <button onClick={this.reset}>Reset to default settings</button>
+                    <button onClick={this.handleReset}>Reset to default settings</button>
                 </div>
                 <div className="section">
                     <label>Seed: <b>{this.state.seed}</b></label>
-                    <button onClick={()=>this.updateProp("seed", Math.random(), this.updateTree)}>
+                    <button onClick={this.handleNewSeed}>
                         Generate New Seed
                     </button>
                 </div>
@@ -170,28 +210,20 @@ let TreeUI = React.createClass({
                             });
                         }}/></label>
                     </div>
-                    {this.renderSlider("leafBranchDepth", this.ranges.depth)}
+                    {this.renderSlider("leafBranchDepth", {min: 1, max: this.state.branchDepth-1})}
                     {this.renderSlider("leafScaleFactor", {max: 3, min: 0}, true)}
                     {this.renderSlider("leafRelativeScaleFactor", {max: 1, min: 0}, true)}
                 </div>
                 <div className="section">
                     <h3>Rotations</h3>
                     {this.renderSlider("trunkRotationX", this.ranges.rotation)}
-                    {this.renderSlider("trunkRotationXSeedMultiplier", this.ranges.multiplier)}
                     {this.renderSlider("trunkRotationY", this.ranges.rotation)}
-                    {this.renderSlider("trunkRotationYSeedMultiplier", this.ranges.multiplier)}
                     {this.renderSlider("trunkRotationZ", this.ranges.rotation)}
-                    {this.renderSlider("trunkRotationZSeedMultiplier", this.ranges.multiplier)}
                     {this.renderSlider("branchRotationX", this.ranges.rotation)}
-                    {this.renderSlider("branchRotationXSeedMultiplier", this.ranges.multiplier)}
                     {this.renderSlider("branchRotationY", this.ranges.rotation)}
-                    {this.renderSlider("branchRotationYSeedMultiplier", this.ranges.multiplier)}
                     {this.renderSlider("branchRotationZ", this.ranges.rotation)}
-                    {this.renderSlider("branchRotationZSeedMultiplier", this.ranges.multiplier)}
                 </div>
             </div>
         </div>;
     }
-});
-
-module.exports = TreeUI;
+}

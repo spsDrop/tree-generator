@@ -1,14 +1,12 @@
-var TreeApp = require('./tree');
-var TreeUI = require('./ui');
+var Scene = require('./scene');
+var TreeUI = require('./ui.jsx').default;
 var ReactDOM = require('react-dom');
 var React = require('react');
 
 window.addEventListener("DOMContentLoaded", function(){
-    var treeApp = new TreeApp();
+    var treeScene = new Scene();
 
-    document.querySelector(".renderWindow").appendChild( treeApp.renderer.domElement );
+    document.querySelector(".renderWindow").appendChild( treeScene.renderer.domElement );
 
-    treeApp.render();
-
-    ReactDOM.render(<TreeUI treeApp={treeApp}/>, document.querySelector(".controls"));
+    ReactDOM.render(<TreeUI treeScene={treeScene}/>, document.querySelector(".controls"));
 });

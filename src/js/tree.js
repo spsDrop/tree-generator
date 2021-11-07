@@ -1,4 +1,6 @@
 var T = require('../../lib/three.js');
+var Leaf = require('./leaf');
+const { RNG } = require('./utils.js');
 
 // Converts from degrees to radians.
 Math.radians = function(degrees) {
@@ -11,67 +13,67 @@ Math.degrees = function(radians) {
 };
 
 
-var TreeApp = function(){
-    this.renderer = new T.WebGLRenderer();
-    this.renderer.setSize( window.innerWidth, window.innerHeight );
-    this.renderer.setClearColor( 0xffffff );
+var Tree = function(settings){
+    this.settings = settings;
 
-    this.setupScene();
-
+    this.rng = new RNG(settings.seed);
+    
     this.generateTree();
 };
 
-TreeApp.prototype = {
-    setupScene: function setupScene(){
-        this.scene = new T.Scene();
-
-        var light = new T.PointLight( 0xffffff, 1, 100 );
-        light.position.set( 5, 7, 10 );
-        this.scene.add( light );
-
-        var camera =
-            this.camera =
-            new T.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
-        camera.position.set( 15, 20, 15);
-        camera.lookAt( new T.Vector3( 0, 7.5, 0 ) );
-    },
+Tree.prototype = {
 
     generateTree: function generateTree(){
         var material = new T.MeshLambertMaterial( {
                         color: 0x00ff00,
-                        shading: T.SmoothShading,
                         wireframe: false
                     } );
 
         material.side = T.DoubleSide;
+        
+        this.leaves = new T.Object3D();
 
-        if(this.tree){
-            this.scene.remove(this.tree);
-            this.tree.geometry.dispose();
-            this.tree.material.dispose();
-            this.tree = null;
+        const treeMesh = new T.Mesh( this.generateGeometry(), material );
+        treeMesh.flipSided = true;
+
+        this.obj = new T.Object3D();
+        this.obj.add(treeMesh);
+
+        if (this.settings.doLeaves) {
+            this.obj.add(this.leaves);
         }
+        
+    },
 
-        var tree =
-                this.tree =
-                new T.Mesh( this.generateGeometry(), material );
-
-        tree.flipSided = true;
-        tree.position.y = -10;
-        this.scene.add( tree );
+    disposeObject: function(obj){
+        obj.children.forEach((child)=>{
+            if(child.children){
+                this.disposeObject(child);
+            }else{
+                child.geometry.dispose();
+                child.material.dispose();
+            }
+        });
     },
 
     generateGeometry: function generateGeometry(){
-
-        var geometry = new T.Geometry();
+        const geometry = new T.Geometry();
+    
+        const {
+            branchDepth,
+            segmentsPerBranch,
+            segmentLength,
+            sectionsPerSegment,
+            initialRadius,
+        } = this.settings;
 
         this.generateBranch(
             geometry,
-            9,
-            5,
-            2,
-            12,
-            1
+            branchDepth,
+            segmentsPerBranch,
+            segmentLength,
+            sectionsPerSegment,
+            initialRadius
         );
 
         geometry.computeFaceNormals();
@@ -80,16 +82,36 @@ TreeApp.prototype = {
         return geometry;
     },
 
-    generateBranch: function(geometry, branchDepth, segmentsPerBranch, segmentLength, sections, radius, ring){
-        var leftRing, rightRing;
+    generateBranch: function(geometry, branchDepth, segmentsPerBranch, initialSegmentLength, sectionsPerSegment, initialRadius, ring){
+        let leftRing, rightRing;
+
+        const {
+            trunkLengthDecay,
+            branchLengthDecay,
+            trunkRadiusDecay,
+            branchRadiusDecay,
+            trunkRotationX,
+            trunkRotationY,
+            trunkRotationZ,
+            branchRotationX,
+            branchRotationY,
+            branchRotationZ,
+            leafBranchDepth,
+            leafScaleFactor,
+            leafRelativeScaleFactor,
+        } = this.settings;
+
+        let radius = initialRadius;
+        let branchCount = branchDepth;
+        let segmentLength = initialSegmentLength;
 
         if(!ring){
             this.maxRadius = radius;
-            ring = this.generateRing(radius, sections);
+            ring = this.generateRing(radius, sectionsPerSegment);
         }
         this.cloneVerticesWithTransform(ring.children[0].geometry, geometry, ring.matrix);
 
-        for(var i = 0; i < segmentsPerBranch; i++) {
+        for(let i = 0; i < segmentsPerBranch; i++) {
 
             ring.translateOnAxis(ring.worldToLocal(new T.Vector3(0,1,0)), segmentLength);
             ring.scale.x = ring.scale.y = ring.scale.z = radius / this.maxRadius;
@@ -99,20 +121,21 @@ TreeApp.prototype = {
 
             this.cloneVerticesWithTransform(ring.children[0].geometry, geometry, ring.matrix);
 
-            this.generateSegment(geometry, sections, 1);
+            this.generateSegment(geometry, sectionsPerSegment, 1);
         }
 
-        var randSeed = Math.random() - 0.5;
-        branchDepth--;
+        branchCount--;
 
-        if(branchDepth > 0){
+        if(branchCount > 0){
             leftRing = ring.clone();
-            segmentLength -= segmentLength * 0.2;
-            radius -= radius * 0.25;
+            segmentLength -= segmentLength * branchLengthDecay;
+            radius -= radius * branchRadiusDecay;
 
-            leftRing.rotation.x += Math.radians(15);
-            leftRing.rotation.y += Math.radians(45 * randSeed);
-            leftRing.rotation.z += Math.radians(25 * randSeed);
+            const leftVariance = this.getRotationVariance();
+
+            leftRing.rotation.x += Math.radians(branchRotationX * -1 );
+            leftRing.rotation.y += Math.radians(branchRotationY  * leftVariance * -1);
+            leftRing.rotation.z += Math.radians(branchRotationZ  * leftVariance * -1);
             leftRing.updateMatrix();
 
             leftRing.scale.x = leftRing.scale.y = leftRing.scale.z = radius / this.maxRadius;
@@ -121,16 +144,18 @@ TreeApp.prototype = {
 
             this.cloneVerticesWithTransform(leftRing.children[0].geometry, geometry, leftRing.matrix);
 
-            this.generateSegment(geometry, sections, 1);
+            this.generateSegment(geometry, sectionsPerSegment, 1);
 
 
             rightRing = ring.clone();
-            segmentLength -= segmentLength * 0.2;
-            radius -= radius * 0.05;
+            segmentLength -= segmentLength * trunkLengthDecay;
+            radius -= radius * trunkRadiusDecay;
 
-            rightRing.rotation.x -= Math.radians(40);
-            rightRing.rotation.y += Math.radians(45 * -randSeed);
-            rightRing.rotation.z += Math.radians(60 * -randSeed);
+            const rightVariance = this.getRotationVariance();
+
+            rightRing.rotation.x -= Math.radians(trunkRotationX);
+            rightRing.rotation.y += Math.radians(trunkRotationY  * rightVariance);
+            rightRing.rotation.z += Math.radians(trunkRotationZ  * rightVariance);
             rightRing.updateMatrix();
 
             rightRing.scale.x = rightRing.scale.y = rightRing.scale.z = radius / this.maxRadius;
@@ -139,11 +164,36 @@ TreeApp.prototype = {
 
             this.cloneVerticesWithTransform(rightRing.children[0].geometry, geometry, rightRing.matrix);
 
-            this.generateSegment(geometry, sections, 2);
+            this.generateSegment(geometry, sectionsPerSegment, 2);
 
-            this.generateBranch(geometry, branchDepth, segmentsPerBranch, segmentLength, sections, radius, leftRing);
-            this.generateBranch(geometry, branchDepth, segmentsPerBranch, segmentLength, sections, radius, rightRing);
+            this.generateBranch(geometry, branchCount, segmentsPerBranch, segmentLength, sectionsPerSegment, radius, leftRing);
+            this.generateBranch(geometry, branchCount, segmentsPerBranch, segmentLength, sectionsPerSegment, radius, rightRing);
+            
+
+            if (leafBranchDepth >= branchCount) {
+                const factor = (branchCount + leafRelativeScaleFactor * (leafBranchDepth - branchCount)) / leafBranchDepth;
+                console.log('branch size', {
+                    factor
+                })
+                const leafScale = factor * leafScaleFactor
+                this.addLeaf(leftRing.matrix, leafScale);
+                if (branchCount === 1) {
+                    this.addLeaf(rightRing.matrix, leafScale)
+                }
+            }
         }
+
+    },
+
+    addLeaf(matrix, scale) {
+        const leaf = new Leaf();
+        leaf.obj.applyMatrix(matrix);
+        leaf.obj.scale.x = leaf.obj.scale.y = leaf.obj.scale.z = scale;
+        this.leaves.add(leaf.obj);
+    },
+
+    getRotationVariance() {
+        return this.rng.nextRange(700,1400)/1000;
     },
 
     generateSegment: function(geometry, sections, ringOffset){
@@ -204,11 +254,13 @@ TreeApp.prototype = {
     },
 
     render: function render() {
-        this.tree.rotation.y += 0.01;
+        if (this.tree) {
+            this.tree.rotation.y += 0.01;
+        }
 
         requestAnimationFrame(this.render.bind(this));
         this.renderer.render(this.scene, this.camera);
     }
 };
 
-module.exports = TreeApp;
+module.exports = Tree;
