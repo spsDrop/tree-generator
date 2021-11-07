@@ -104,7 +104,7 @@ export default class TreeUI extends React.Component{
 
         if(match && match[0]){
             try{
-                savedSettings = JSON.parse(Buffer.from(match[1], 'base64'));
+                savedSettings = JSON.parse(atob(match[1]));
             }catch(e){
                 console.log("Error retrieving settings");
             }

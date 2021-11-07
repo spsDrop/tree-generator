@@ -51,10 +51,9 @@ TreeScene.prototype = {
         obj.children.forEach((child)=>{
             if(child.children){
                 this.disposeObjectTree(child);
-            }else{
-                child.geometry.dispose();
-                child.material.dispose();
             }
+            child?.geometry?.dispose();
+            child?.material?.dispose();
         });
     },
 
