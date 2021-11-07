@@ -6,6 +6,7 @@ var TreeScene = function(){
     this.renderer = new T.WebGLRenderer();
     this.renderer.setSize( window.innerWidth, window.innerHeight );
     this.renderer.setClearColor( 0xffffff );
+    this.rotate = true;
 
     this.setupScene();
 };
@@ -42,6 +43,10 @@ TreeScene.prototype = {
         this.scene.add( this.tree.obj );
     },
 
+    toggleRotation(state) {
+        this.rotate = state;
+    },
+
     disposeObjectTree: function(obj){
         obj.children.forEach((child)=>{
             if(child.children){
@@ -54,7 +59,7 @@ TreeScene.prototype = {
     },
 
     render: function render() {
-        if(this.tree) {
+        if(this.tree && this.rotate) {
             this.tree.obj.rotation.y += 0.01;
         }
 

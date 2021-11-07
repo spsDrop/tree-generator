@@ -25,11 +25,34 @@ function RNG(seed) {
     return array[this.nextRange(0, array.length)];
   }
 
+function throttle(fn, delay) {
+    let timer;
+    let lastTrigger;
+
+    const triggerAndRest = () => {
+        console.log('TRIGGERED!')
+        fn();
+        lastTrigger = Date.now();
+        timer = undefined;
+    };
+    return function() {
+        const now = Date.now();
+        if (lastTrigger && now - lastTrigger < delay && !timer) {
+            timer = setTimeout(triggerAndRest, delay - (now - lastTrigger));
+        }
+        if (!lastTrigger || now - lastTrigger > delay) {
+            triggerAndRest();
+        }
+
+    }
+}
+
 module.exports = {
     cloneVerticesWithTransform:function( source, target, transformationMatrix ){
         source.vertices.forEach(function(vert){
             target.vertices.push( vert.clone().applyMatrix4( transformationMatrix) );
         });
     },
-    RNG
+    RNG,
+    throttle
 };

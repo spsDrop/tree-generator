@@ -25,7 +25,6 @@ module.exports = {
         template: Path.join(__dirname, 'src', "index.html"),
       }),
     ],
-    watch: true,
     watchOptions: {
       poll: true,
       ignored: '**/node_modules',

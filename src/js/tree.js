@@ -45,17 +45,6 @@ Tree.prototype = {
         
     },
 
-    disposeObject: function(obj){
-        obj.children.forEach((child)=>{
-            if(child.children){
-                this.disposeObject(child);
-            }else{
-                child.geometry.dispose();
-                child.material.dispose();
-            }
-        });
-    },
-
     generateGeometry: function generateGeometry(){
         const geometry = new T.Geometry();
     
@@ -172,9 +161,6 @@ Tree.prototype = {
 
             if (leafBranchDepth >= branchCount) {
                 const factor = (branchCount + leafRelativeScaleFactor * (leafBranchDepth - branchCount)) / leafBranchDepth;
-                console.log('branch size', {
-                    factor
-                })
                 const leafScale = factor * leafScaleFactor
                 this.addLeaf(leftRing.matrix, leafScale);
                 if (branchCount === 1) {
