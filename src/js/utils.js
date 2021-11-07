@@ -30,7 +30,6 @@ function throttle(fn, delay) {
     let lastTrigger;
 
     const triggerAndRest = () => {
-        console.log('TRIGGERED!')
         fn();
         lastTrigger = Date.now();
         timer = undefined;

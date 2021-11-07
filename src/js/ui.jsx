@@ -54,31 +54,35 @@ const scrollArea = css`
 
 function defaultSettings(){
     return  {
-        seed: 0.013824013294652104,
+        seed: 0.5608898704217697,
 
         doLeaves: true,
         leafBranchDepth: 6,
         leafScaleFactor: 1,
         leafRelativeScaleFactor: 0.5,
 
-        trunkRotationX: 15,
-        trunkRotationY: 45,
-        trunkRotationZ: 25,
-        branchRotationX: 40,
-        branchRotationY: 45,
-        branchRotationZ: 60,
 
-        trunkLengthDecay: 0.2,
+        trunkLengthDecay: 0.16,
+        trunkRadiusDecay: 0.07,
+        trunkRotationX: 16,
+        trunkRotationY: 18,
+        trunkRotationZ: 17,
+
+        
+        branchDepth: 10,
         branchLengthDecay: 0.2,
-        trunkRadiusDecay: 0.04,
-        branchRadiusDecay: 0.06,
-        branchRadiusDecayPerSegment: 0.08,
+        branchRadiusDecay: 0.09,
+        branchRadiusDecayPerSegment: 0.09,
+        branchRotationX: 17,
+        branchRotationY: 46,
+        branchRotationZ: 24,
 
-        branchDepth: 9,
+
+        branchDepth: 10,
         segmentsPerBranch: 5,
         segmentLength: 2,
-        sectionsPerSegment: 12,
-        initialRadius: 1,
+        sectionsPerSegment: 15,
+        initialRadius: 1.19,
         rotate: true,
         hidden: false
     };
@@ -100,7 +104,7 @@ export default class TreeUI extends React.Component{
 
         if(match && match[0]){
             try{
-                savedSettings = JSON.parse(atob(match[1]));
+                savedSettings = JSON.parse(Buffer.from(match[1], 'base64'));
             }catch(e){
                 console.log("Error retrieving settings");
             }
@@ -163,6 +167,7 @@ export default class TreeUI extends React.Component{
 
     componentDidMount(){
         this.updateTree();
+        this.props.treeScene.toggleRotation(this.state.rotate);
         this.props.treeScene.render();
     }
 
@@ -202,6 +207,7 @@ export default class TreeUI extends React.Component{
 
     handleToggleRotate = () => {
         this.props.treeScene.toggleRotation(this.state.rotate);
+        this.saveSettings();
     }
 
     render(){

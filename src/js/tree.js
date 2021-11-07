@@ -25,7 +25,7 @@ Tree.prototype = {
 
     generateTree: function generateTree(){
         var material = new T.MeshLambertMaterial( {
-                        color: 0x00ff00,
+                        color: 0x85745a,
                         wireframe: false
                     } );
 

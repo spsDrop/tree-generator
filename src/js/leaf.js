@@ -4,7 +4,7 @@ var Utils = require('./utils');
 var Leaf = function(){
     var material, leaf, leafObj;
 
-    material = this.material = new T.MeshLambertMaterial( { color: 0x00ff00 } );
+    material = this.material = new T.MeshLambertMaterial( { color: 0x28682D } );
     material.side = T.DoubleSide;
 
     leafObj = this.object = new T.Object3D();
@@ -31,7 +31,7 @@ Leaf.prototype = {
         geometry.vertices.push(new T.Vector3(2.5,-0.25,0));
 
         this.generateFaces(0, geometry);
-        
+
         geometry.computeFaceNormals();
         geometry.computeVertexNormals();
 
