@@ -1,4 +1,4 @@
-function RNG(seed) {
+export function RNG(seed) {
     // LCG using GCC's constants
     this.m = 0x80000000; // 2**31;
     this.a = 1103515245;
@@ -25,7 +25,7 @@ function RNG(seed) {
     return array[this.nextRange(0, array.length)];
   }
 
-function throttle(fn, delay) {
+export function throttle(fn, delay) {
     let timer;
     let lastTrigger;
 
@@ -46,12 +46,8 @@ function throttle(fn, delay) {
     }
 }
 
-module.exports = {
-    cloneVerticesWithTransform:function( source, target, transformationMatrix ){
-        source.vertices.forEach(function(vert){
-            target.vertices.push( vert.clone().applyMatrix4( transformationMatrix) );
-        });
-    },
-    RNG,
-    throttle
-};
+export function cloneVerticesWithTransform( source, target, transformationMatrix ){
+  source.vertices.forEach(function(vert){
+      target.vertices.push( vert.clone().applyMatrix4( transformationMatrix) );
+  });
+}

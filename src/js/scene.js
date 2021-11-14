@@ -1,8 +1,6 @@
-var T = require('../../lib/three.js');
-var Tree = require('./tree');
-var Leaf = require('./leaf');
-
-var TreeScene = function(){
+import * as T from "../../lib/three";
+import { Tree } from './tree.js';
+export function TreeScene(){
     this.renderer = new T.WebGLRenderer();
     this.renderer.setSize( window.innerWidth, window.innerHeight );
     this.renderer.setClearColor( 0xffffff );
@@ -66,5 +64,3 @@ TreeScene.prototype = {
         this.renderer.render(this.scene, this.camera);
     }
 };
-
-module.exports = TreeScene;

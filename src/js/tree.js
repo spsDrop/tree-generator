@@ -1,6 +1,7 @@
-var T = require('../../lib/three.js');
-var Leaf = require('./leaf');
-const { RNG } = require('./utils.js');
+import * as T from "../../lib/three";
+import { Leaf } from "./leaf";
+import { Noise } from "./noise";
+import { RNG } from "./utils";
 
 // Converts from degrees to radians.
 Math.radians = function(degrees) {
@@ -13,10 +14,11 @@ Math.degrees = function(radians) {
 };
 
 
-var Tree = function(settings){
+export function Tree(settings){
     this.settings = settings;
 
     this.rng = new RNG(settings.seed);
+    this.noise = new Noise(this.settings.seed);
     
     this.generateTree();
 };
@@ -65,10 +67,49 @@ Tree.prototype = {
             initialRadius
         );
 
+        geometry.mergeVertices();
         geometry.computeFaceNormals();
         geometry.computeVertexNormals();
 
+        if (this.settings.noise) {
+            this.generateVertexNoise(geometry);
+        }
+
         return geometry;
+    },
+
+    generateVertexNoise: function(geometry) {
+        // const faceCount = geometry.faces.length;
+        // const noise = new Noise(this.settings.seed);
+        // const noiseScalingFactor = 1/1
+
+        // for(let i = 0; i < faceCount; i += 1){
+        //     const face = geometry.faces[i];
+        //     const aVert = geometry.vertices[face.a];
+        //     const noiseScalar = noise.perlin3(
+        //         aVert.x * noiseScalingFactor,
+        //         aVert.y * noiseScalingFactor,
+        //         aVert.z * noiseScalingFactor,
+        //     )
+        //     face.normal.multiplyScalar(noiseScalar);
+        //     console.log('scalar', noiseScalar);
+        // }
+        const vertCount = geometry.vertices.length;
+
+        for(let i = 0; i < vertCount; i += 1){
+            this.applyNoiseOffset(geometry.vertices[i]);
+            
+        }
+    },
+
+    applyNoiseOffset(vert) {
+        const { noiseScale, noiseFactor } = this.settings;
+        const noiseScalar = noiseFactor * this.noise.perlin3(
+            vert.x * noiseScale,
+            vert.y * noiseScale,
+            vert.z * noiseScale,
+        )
+        vert.multiplyScalar(1+noiseScalar);
     },
 
     generateBranch: function(geometry, branchDepth, segmentsPerBranch, initialSegmentLength, sectionsPerSegment, initialRadius, ring){
@@ -120,11 +161,11 @@ Tree.prototype = {
             segmentLength -= segmentLength * branchLengthDecay;
             radius -= radius * branchRadiusDecay;
 
-            const leftVariance = this.getRotationVariance();
+            const leftVariance = 1;//this.getRotationVariance();
 
-            leftRing.rotation.x += Math.radians(branchRotationX * -1 );
-            leftRing.rotation.y += Math.radians(branchRotationY  * leftVariance * -1);
-            leftRing.rotation.z += Math.radians(branchRotationZ  * leftVariance * -1);
+            leftRing.rotation.x += Math.radians(trunkRotationX * -1 );
+            leftRing.rotation.y += Math.radians(trunkRotationY  * leftVariance * -1);
+            leftRing.rotation.z += Math.radians(trunkRotationZ  * leftVariance * -1);
             leftRing.updateMatrix();
 
             leftRing.scale.x = leftRing.scale.y = leftRing.scale.z = radius / this.maxRadius;
@@ -140,11 +181,11 @@ Tree.prototype = {
             segmentLength -= segmentLength * trunkLengthDecay;
             radius -= radius * trunkRadiusDecay;
 
-            const rightVariance = this.getRotationVariance();
+            const rightVariance = 1;//this.getRotationVariance();
 
-            rightRing.rotation.x -= Math.radians(trunkRotationX);
-            rightRing.rotation.y += Math.radians(trunkRotationY  * rightVariance);
-            rightRing.rotation.z += Math.radians(trunkRotationZ  * rightVariance);
+            rightRing.rotation.x -= Math.radians(branchRotationX);
+            rightRing.rotation.y += Math.radians(branchRotationY  * rightVariance);
+            rightRing.rotation.z += Math.radians(branchRotationZ  * rightVariance);
             rightRing.updateMatrix();
 
             rightRing.scale.x = rightRing.scale.y = rightRing.scale.z = radius / this.maxRadius;
@@ -174,6 +215,9 @@ Tree.prototype = {
     addLeaf(matrix, scale) {
         const leaf = new Leaf();
         leaf.obj.applyMatrix(matrix);
+        if (this.settings.noise) {
+            this.applyNoiseOffset(leaf.obj.position);
+        }
         leaf.obj.scale.x = leaf.obj.scale.y = leaf.obj.scale.z = scale;
         this.leaves.add(leaf.obj);
     },
@@ -237,16 +281,5 @@ Tree.prototype = {
         source.vertices.forEach(function(vert){
             target.vertices.push( vert.clone().applyMatrix4( transformationMatrix) );
         });
-    },
-
-    render: function render() {
-        if (this.tree) {
-            this.tree.rotation.y += 0.01;
-        }
-
-        requestAnimationFrame(this.render.bind(this));
-        this.renderer.render(this.scene, this.camera);
     }
 };
-
-module.exports = Tree;

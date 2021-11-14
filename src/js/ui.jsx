@@ -1,8 +1,8 @@
 /** @jsx jsx */
 import { jsx } from '@emotion/react';
-const { css } = require("@emotion/react");
-const React = require('react');
-const { default: ReactSlider } = require('react-slider');
+import { css } from '@emotion/react';
+import React from 'react';
+import ReactSlider from 'react-slider';
 import {throttle} from './utils'
 
 const controlsStyle = css`
@@ -84,7 +84,10 @@ function defaultSettings(){
         sectionsPerSegment: 15,
         initialRadius: 1.19,
         rotate: true,
-        hidden: false
+        hidden: false,
+        noise: true,
+        noiseScale: 1/60,
+        noiseFactor: 0.75
     };
 };
 
@@ -242,6 +245,19 @@ export default class TreeUI extends React.Component{
                     {this.renderSlider("leafBranchDepth", {min: 1, max: this.state.branchDepth-1})}
                     {this.renderSlider("leafScaleFactor", {max: 3, min: 0}, true)}
                     {this.renderSlider("leafRelativeScaleFactor", {max: 1, min: 0}, true)}
+                </div>
+                <div css={sectionStyle}>
+                    <h3>Noise</h3>
+                    <div css={sectionStyle}>
+                        <label>Do Noise <input type="checkbox" checked={this.state.noise} onChange={()=>{
+                            this.setState({noise:!this.state.noise}, ()=>{
+                                this.saveSettings();
+                                this.updateTree();
+                            });
+                        }}/></label>
+                    </div>
+                    {this.renderSlider("noiseScale", {max: 1, min: 1/200}, true)}
+                    {this.renderSlider("noiseFactor", {max: 1, min: 0}, true)}
                 </div>
                 <div css={sectionStyle}>
                     <h3>Rotations</h3>

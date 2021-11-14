@@ -1,10 +1,10 @@
-var Scene = require('./scene');
-var TreeUI = require('./ui.jsx').default;
+import { TreeScene } from "./scene";
+import TreeUI from "./ui.jsx";
 var ReactDOM = require('react-dom');
 var React = require('react');
 
 window.addEventListener("DOMContentLoaded", function(){
-    var treeScene = new Scene();
+    var treeScene = new TreeScene();
 
     document.querySelector(".renderWindow").appendChild( treeScene.renderer.domElement );
 

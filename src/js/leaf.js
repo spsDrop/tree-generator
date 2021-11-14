@@ -1,7 +1,6 @@
-var T = require('../../lib/three.js');
-var Utils = require('./utils');
+import * as T from "../../lib/three";
 
-var Leaf = function(){
+export function Leaf(){
     var material, leaf, leafObj;
 
     material = this.material = new T.MeshLambertMaterial( { color: 0x28682D } );
@@ -58,5 +57,3 @@ Leaf.prototype = {
         this.object = null;
     }
 };
-
-module.exports = Leaf;
