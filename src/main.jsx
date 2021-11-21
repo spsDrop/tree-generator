@@ -1,5 +1,5 @@
-import { TreeScene } from "./scene";
-import TreeUI from "./ui.jsx";
+import { TreeScene } from "./tree/scene";
+import TreeUI from "./ui/ui.jsx";
 var ReactDOM = require('react-dom');
 var React = require('react');
 

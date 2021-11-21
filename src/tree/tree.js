@@ -1,7 +1,7 @@
 import * as T from "../../lib/three";
 import { Leaf } from "./leaf";
-import { Noise } from "./noise";
-import { RNG } from "./utils";
+import { Noise } from "./utils/noise";
+import { RNG } from "./utils/rng";
 
 // Converts from degrees to radians.
 Math.radians = function(degrees) {

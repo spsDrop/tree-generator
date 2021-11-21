@@ -23,17 +23,17 @@ TreeScene.prototype = {
 
         this.camera =
                 new T.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.camera.position.set(20, 22, 20);
-        this.camera.lookAt(new T.Vector3(0, 10, 0));
+        this.camera.position.set(...this.cameraPosition);
+        this.camera.lookAt(this.cameraTarget);
     
 
-        var light = new T.SpotLight(0xffffff, 0.65);
+        var light = new T.SpotLight(0xffffff, 0.8);
         light.position.set(60, 62, 20);
         light.target.position.set(0, 0, 0)
         light.castShadow = true;
         // light.shadowCameraNear = 200;
         // light.shadowCameraFar = this.camera.far;
-        light.shadowCameraFov = 50;  // in degrees
+        light.shadowCameraFov = 90;  // in degrees
         light.shadowBias = -0.01;
         light.shadowDarkness = 0.5;
         light.shadowMapWidth = 2048;
@@ -53,6 +53,9 @@ TreeScene.prototype = {
         
         this.light = light;
     },
+
+    cameraPosition: [20, 22, 20],
+    cameraTarget: new T.Vector3(0, 10, 0),
 
     interval: null,
 
@@ -113,6 +116,16 @@ TreeScene.prototype = {
 
     setRotation(val) {
         this.tree.obj.rotation.y = val;
+    },
+
+    scale: 1,
+    
+    setScale(scale) {
+        this.scale = Math.min(3,Math.max(0.5, scale));
+        console.log('scale', this.scale);
+        this.camera.position.set(...this.cameraPosition);
+        this.camera.position.multiplyScalar(this.scale);
+        this.camera.lookAt(this.cameraTarget);
     },
 
     frameCount: 0,

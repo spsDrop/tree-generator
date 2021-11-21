@@ -2,10 +2,12 @@
 import { jsx } from '@emotion/react';
 import { css } from '@emotion/react';
 import React from 'react';
-import { Gestures } from 'react-gesture-handler';
-import ReactSlider from 'react-slider';
-import { FpsCounter } from './fps-counter';
-import {throttle} from './utils';
+import Slider from 'rc-slider';
+import 'rc-slider/assets/index.css';
+import { CollapsableSection } from './components/collapsable-section';
+import { FpsCounter } from './components/fps-counter';
+import { InteractionHander } from './components/interaction-handler';
+import {throttle} from './utils/throttle';
 
 const boxStyles = css`
     padding: 1rem;
@@ -18,33 +20,41 @@ const controlsStyle = css`
     position: absolute;
     right: 2rem;
     bottom: 1rem;
-`;
 
-const sectionStyle = css`
-    margin-bottom: 0.5rem;
-`;
+    button {
+        padding: 0.7rem 0.7rem;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        font-weight: bold;
+        background: rgb(101, 124, 92);
+        border-color: #b9ccb9;
+        color: #b9ccb9;
 
-const sliderStyle = css`
-    margin-bottom: 0.3rem;
-    .slider {
-        height: 1rem;
-        .track {
-            height: 0.5rem;
-            background: rgba(151, 173, 143, 0.45);
-            top: 0.25rem;
+        :hover {
+            color: #efffe9;
+            border-color: #efffe9;
         }
-        .thumb {
-            top: 0.1275rem;
-            height: 0.75rem;
-            width: 0.75rem;
-            background: #2d302c;
-            cursor: pointer;
-        }
+    }
+
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+        min-width: 15rem;
     }
 
     b {
-        color: #758d6c;
+        color: #efffe9;
+        float: right;
     }
+`;
+
+const sectionStyle = css`
+    margin-bottom: 1rem;
+`;
+
+const sliderStyle = css`
+    margin-bottom: 0.5rem;
+
 `;
 
 const toggleStyles = css`
@@ -62,7 +72,6 @@ const bugStyles = css`
     position: absolute;
     left: 2rem;
     bottom: 1rem;
-    padding
 `;
 
 const eventArea = css`
@@ -71,6 +80,7 @@ const eventArea = css`
     top: 0;
     right: 0;
     bottom: 0;
+    touch-action: none;
 `
 
 function defaultSettings(){
@@ -78,32 +88,31 @@ function defaultSettings(){
         seed: 0.5608898704217697,
 
         doLeaves: true,
-        leafBranchDepth: 6,
+        leafBranchDepth: 4,
         leafScaleFactor: 1,
         leafRelativeScaleFactor: 0.5,
 
 
-        trunkLengthDecay: 0.16,
-        trunkRadiusDecay: 0.07,
-        trunkRotationX: 5,
+        trunkLengthDecay: 0.14,
+        trunkRadiusDecay: 0.05,
+        trunkRotationX: 0,
         trunkRotationY: 10,
-        trunkRotationZ: 25,
+        trunkRotationZ: 24,
 
         
-        branchDepth: 10,
-        branchLengthDecay: 0.2,
-        branchRadiusDecay: 0.09,
+        branchLengthDecay: 0.18,
+        branchRadiusDecay: 0.08,
         branchRadiusDecayPerSegment: 0.09,
-        branchRotationX: 20,
-        branchRotationY: 24,
-        branchRotationZ: 35,
+        branchRotationX: 35,
+        branchRotationY: 42,
+        branchRotationZ: 57,
 
 
         branchDepth: 10,
         segmentsPerBranch: 5,
         segmentLength: 2,
         sectionsPerSegment: 15,
-        initialRadius: 1.19,
+        initialRadius: 2.14,
         rotate: true,
         hidden: false,
         noise: true,
@@ -214,7 +223,23 @@ export default class TreeUI extends React.Component{
         return (
             <div className="property" css={sliderStyle}>
                 <label>{prop} <b>{this.state[prop]}</b></label>
-                <ReactSlider step={float ? 0.01 : 1} onAfterChange={this.handleUpdateTree} onChange={update} value={this.state[prop]} {...defaults}/>
+                <Slider
+                    step={float ? 0.01 : 1}
+                    onAfterChange={this.handleUpdateTree} 
+                    onChange={update}
+                    value={this.state[prop]}
+                    {...defaults}
+                    railStyle={{
+                        background: 'rgba(151, 173, 143, 0.45)',
+                    }}
+                    trackStyle={[{
+                        background: '#b9ccb9',
+                    }]}
+                    handleStyle={[{
+                        background: '#2d302c',
+                        borderColor: '#b9ccb9',
+                    }]}
+                />
             </div>
         );
     }
@@ -242,135 +267,66 @@ export default class TreeUI extends React.Component{
         this.saveSettings();
     }
 
-    spinHome = null;
-    rotation = 0;
-
-    onSpinStart = (e) => {
-        this.spinHome = { x: e.clientX };
-        this.props.treeScene.manualRotation = true;
-        this.rotation = this.props.treeScene.getRotation();
-    }
-
-    onSpinMove = (e) => {
-        if (this.spinHome) {
-            const offsetPercent = (e.clientX - this.spinHome.x) / window.innerWidth;
-            this.props.treeScene.setRotation(this.rotation + offsetPercent * 2 * Math.PI);
-        }
-    }
-
-    onSpinEnd = () => {
-        this.spinHome = null;
-        this.props.treeScene.manualRotation = false;
-    }
-
-    onScaleStart = (e) => {
-        console.log(e);
-    }
-
-    onScaleMove = (e) => {
-        console.log(e);
-    }
-
-    onScaleEnd = (e) => {
-        console.log(e)
-    }
-
     render(){
         return (
         <>
-            <Gestures
-                recognizers={{
-                    Pinch: {
-                        events: {
-                            pinchstart: this.onScaleStart,
-                            pinchmove: this.onScaleMove,
-                            pinchend: this.onScaleEnd,
-                        }
-                    }
-                }}
-            >
-                <div css={eventArea} 
-                    onTouchStart={this.onSpinStart}
-                    onTouchMove={this.onSpinMove}
-                    onTouchEnd={this.onSpinEnd}
-                    onTouchCancel={this.onSpinEnd}
-                    onMouseDown={this.onSpinStart}
-                    onMouseMove={this.onSpinMove}
-                    onMouseUp={this.onSpinEnd}
-                    onMouseLeave={this.onSpinEnd}
-                />
-            </Gestures>
+            <InteractionHander treeScene={this.props.treeScene} />
             <div css={[bugStyles, boxStyles]}>
                 <p><FpsCounter treeScene={this.props.treeScene} /></p>
                 <p>Face count {this.state.faceCount}</p>
             </div>
             <div css={[controlsStyle, boxStyles]}>
                 <div css={scrollArea} style={{display: this.state.hidden ? 'none' : 'block'}}>
-                    <div css={sectionStyle}>
-                        <h3>Geometry</h3>
+                    <CollapsableSection title="Geometry">
                         {this.renderSlider("branchDepth", this.ranges.depth)}
                         {this.renderSlider("segmentsPerBranch", this.ranges.segments)}
                         {this.renderSlider("segmentLength", this.ranges.length, true)}
                         {this.renderSlider("sectionsPerSegment", this.ranges.sections)}
                         {this.renderSlider("initialRadius", this.ranges.length, true)}
-                    </div>
-                    <div css={sectionStyle}>
-                        <h3>Decays</h3>
+                    </CollapsableSection>
+                    <CollapsableSection title="Decays">
                         {this.renderSlider("trunkLengthDecay", this.ranges.decay, true)}
                         {this.renderSlider("branchLengthDecay", this.ranges.decay, true)}
                         {this.renderSlider("trunkRadiusDecay", this.ranges.decay, true)}
                         {this.renderSlider("branchRadiusDecay", this.ranges.decay, true)}
                         {this.renderSlider("branchRadiusDecayPerSegment", this.ranges.decay, true)}
-                    </div>
-                    <div css={sectionStyle}>
-                        <h3>Leaves</h3>
+                    </CollapsableSection>
+                    <CollapsableSection title="Leaves">
                         <div css={sectionStyle}>
-                            <label>Do Leaves <input type="checkbox" checked={this.state.doLeaves} onChange={()=>{
-                                this.setState({doLeaves:!this.state.doLeaves}, ()=>{
-                                    this.saveSettings();
-                                    this.updateTree();
-                                });
-                            }}/></label>
+                            <label>Do Leaves 
+                                <input type="checkbox" checked={this.state.doLeaves} onChange={()=>{
+                                    this.setState({doLeaves:!this.state.doLeaves}, ()=>{
+                                        this.saveSettings();
+                                        this.updateTree();
+                                    });
+                                }}/>
+                            </label>
                         </div>
                         {this.renderSlider("leafBranchDepth", {min: 1, max: this.state.branchDepth-1})}
                         {this.renderSlider("leafScaleFactor", {max: 3, min: 0}, true)}
                         {this.renderSlider("leafRelativeScaleFactor", {max: 1, min: 0}, true)}
-                    </div>
-                    <div css={sectionStyle}>
-                        <h3>Noise</h3>
-                        <div css={sectionStyle}>
-                            <label>Do Noise <input type="checkbox" checked={this.state.noise} onChange={()=>{
-                                this.setState({noise:!this.state.noise}, ()=>{
-                                    this.saveSettings();
-                                    this.updateTree();
-                                });
-                            }}/></label>
-                        </div>
-                        {this.renderSlider("noiseScale", {max: 1, min: 1/200}, true)}
-                        {this.renderSlider("noiseFactor", {max: 1, min: 0}, true)}
-                    </div>
-                    <div css={sectionStyle}>
-                        <h3>Rotations</h3>
+                    </CollapsableSection>
+                    <CollapsableSection title="Rotations">
                         {this.renderSlider("trunkRotationX", this.ranges.rotation)}
                         {this.renderSlider("trunkRotationY", this.ranges.rotation)}
                         {this.renderSlider("trunkRotationZ", this.ranges.rotation)}
                         {this.renderSlider("branchRotationX", this.ranges.rotation)}
                         {this.renderSlider("branchRotationY", this.ranges.rotation)}
                         {this.renderSlider("branchRotationZ", this.ranges.rotation)}
+                    </CollapsableSection>
+                    <div css={sectionStyle}>
+                        <label>Auto rotate <input type="checkbox" checked={this.state.rotate} onChange={()=>{
+                            this.setState({rotate:!this.state.rotate}, this.handleToggleRotate);
+                        }}/></label>
                     </div>
                     <div css={sectionStyle}>
-                        <button onClick={this.handleReset}>Reset to default settings</button>
-                    </div>
-                    <div css={sectionStyle}>
-                        <label>Seed <b>{this.state.seed}</b></label><br/>
+                        <label>Seed <b>{this.state.seed}</b></label>
                         <button onClick={this.handleNewSeed}>
                             Generate New Seed
                         </button>
                     </div>
                     <div css={sectionStyle}>
-                        <label>Rotate <input type="checkbox" checked={this.state.rotate} onChange={()=>{
-                            this.setState({rotate:!this.state.rotate}, this.handleToggleRotate);
-                        }}/></label>
+                        <button onClick={this.handleReset}>Reset to default settings</button>
                     </div>
                 </div>
                 <div css={toggleStyles} onClick={this.toggle}>
