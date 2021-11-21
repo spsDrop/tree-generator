@@ -1,10 +1,11 @@
 var Path = require("path");
-const HtmlWebpackPlugin = require('html-webpack-plugin');
+const CopyPlugin = require("copy-webpack-plugin");
 
 module.exports = {
-    entry: Path.join(__dirname,"src","js","main.jsx"),
+    entry: Path.join(__dirname,"src","main.jsx"),
     output: {
       path: Path.resolve(__dirname, "dist"),
+      publicPath: '/',
     },
     module: {
       rules: [
@@ -18,11 +19,20 @@ module.exports = {
             }
           }
         },
+        {
+          test: /\.css$/i,
+          use: ["style-loader", "css-loader"],
+        },
       ]
     },
+    resolve: {
+      extensions: ['', '.js', '.jsx'],
+    },
     plugins: [
-      new HtmlWebpackPlugin({
-        template: Path.join(__dirname, 'src', "index.html"),
+      new CopyPlugin({
+        patterns: [
+          { from: "public", to: "" },
+        ],
       }),
     ],
     watchOptions: {

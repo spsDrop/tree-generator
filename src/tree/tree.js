@@ -1,7 +1,7 @@
 import * as T from "../../lib/three";
 import { Leaf } from "./leaf";
-import { Noise } from "./noise";
-import { RNG } from "./utils";
+import { Noise } from "./utils/noise";
+import { RNG } from "./utils/rng";
 
 // Converts from degrees to radians.
 Math.radians = function(degrees) {
@@ -36,7 +36,8 @@ Tree.prototype = {
         this.leaves = new T.Object3D();
 
         const treeMesh = new T.Mesh( this.generateGeometry(), material );
-        treeMesh.flipSided = true;
+        treeMesh.castShadow = true;
+        treeMesh.receiveShadow = true;
 
         this.obj = new T.Object3D();
         this.obj.add(treeMesh);
@@ -52,7 +53,6 @@ Tree.prototype = {
     
         const {
             branchDepth,
-            segmentsPerBranch,
             segmentLength,
             sectionsPerSegment,
             initialRadius,
@@ -61,7 +61,6 @@ Tree.prototype = {
         this.generateBranch(
             geometry,
             branchDepth,
-            segmentsPerBranch,
             segmentLength,
             sectionsPerSegment,
             initialRadius
@@ -70,6 +69,7 @@ Tree.prototype = {
         geometry.mergeVertices();
         geometry.computeFaceNormals();
         geometry.computeVertexNormals();
+        geometry.uvsNeedUpdate = true;
 
         if (this.settings.noise) {
             this.generateVertexNoise(geometry);
@@ -112,7 +112,7 @@ Tree.prototype = {
         vert.multiplyScalar(1+noiseScalar);
     },
 
-    generateBranch: function(geometry, branchDepth, segmentsPerBranch, initialSegmentLength, sectionsPerSegment, initialRadius, ring){
+    generateBranch(geometry, currentBranchDepth, initialSegmentLength, sectionsPerSegment, initialRadius, ring, isRight = false){
         let leftRing, rightRing;
 
         const {
@@ -120,19 +120,15 @@ Tree.prototype = {
             branchLengthDecay,
             trunkRadiusDecay,
             branchRadiusDecay,
-            trunkRotationX,
-            trunkRotationY,
-            trunkRotationZ,
-            branchRotationX,
-            branchRotationY,
-            branchRotationZ,
             leafBranchDepth,
             leafScaleFactor,
             leafRelativeScaleFactor,
+            segmentsPerBranch,
+            branchDepth
         } = this.settings;
 
         let radius = initialRadius;
-        let branchCount = branchDepth;
+        let branchCount = currentBranchDepth;
         let segmentLength = initialSegmentLength;
 
         if(!ring){
@@ -141,10 +137,15 @@ Tree.prototype = {
         }
         this.cloneVerticesWithTransform(ring.children[0].geometry, geometry, ring.matrix);
 
+        const leftVariance = this.getRotationVariance();
+
         for(let i = 0; i < segmentsPerBranch; i++) {
 
             ring.translateOnAxis(ring.worldToLocal(new T.Vector3(0,1,0)), segmentLength);
             ring.scale.x = ring.scale.y = ring.scale.z = radius / this.maxRadius;
+            if (branchCount !== branchDepth) {
+                this.rotateRing(ring, leftVariance, isRight);
+            }
             ring.updateMatrix();
 
             radius -= radius * 0.05;
@@ -161,13 +162,8 @@ Tree.prototype = {
             segmentLength -= segmentLength * branchLengthDecay;
             radius -= radius * branchRadiusDecay;
 
-            const leftVariance = 1;//this.getRotationVariance();
 
-            leftRing.rotation.x += Math.radians(trunkRotationX * -1 );
-            leftRing.rotation.y += Math.radians(trunkRotationY  * leftVariance * -1);
-            leftRing.rotation.z += Math.radians(trunkRotationZ  * leftVariance * -1);
-            leftRing.updateMatrix();
-
+            this.rotateRing(leftRing, leftVariance);
             leftRing.scale.x = leftRing.scale.y = leftRing.scale.z = radius / this.maxRadius;
             leftRing.translateY(segmentLength);
             leftRing.updateMatrix();
@@ -181,13 +177,9 @@ Tree.prototype = {
             segmentLength -= segmentLength * trunkLengthDecay;
             radius -= radius * trunkRadiusDecay;
 
-            const rightVariance = 1;//this.getRotationVariance();
+            const rightVariance = this.getRotationVariance();
 
-            rightRing.rotation.x -= Math.radians(branchRotationX);
-            rightRing.rotation.y += Math.radians(branchRotationY  * rightVariance);
-            rightRing.rotation.z += Math.radians(branchRotationZ  * rightVariance);
-            rightRing.updateMatrix();
-
+            this.rotateRing(rightRing, rightVariance, true);
             rightRing.scale.x = rightRing.scale.y = rightRing.scale.z = radius / this.maxRadius;
             rightRing.translateY(segmentLength);
             rightRing.updateMatrix();
@@ -196,11 +188,11 @@ Tree.prototype = {
 
             this.generateSegment(geometry, sectionsPerSegment, 2);
 
-            this.generateBranch(geometry, branchCount, segmentsPerBranch, segmentLength, sectionsPerSegment, radius, leftRing);
-            this.generateBranch(geometry, branchCount, segmentsPerBranch, segmentLength, sectionsPerSegment, radius, rightRing);
+            this.generateBranch(geometry, branchCount, segmentLength, sectionsPerSegment, radius, leftRing);
+            this.generateBranch(geometry, branchCount, segmentLength, sectionsPerSegment, radius, rightRing, true);
             
 
-            if (leafBranchDepth >= branchCount) {
+            if (this.settings.doLeaves && leafBranchDepth >= branchCount) {
                 const factor = (branchCount + leafRelativeScaleFactor * (leafBranchDepth - branchCount)) / leafBranchDepth;
                 const leafScale = factor * leafScaleFactor
                 this.addLeaf(leftRing.matrix, leafScale);
@@ -210,6 +202,26 @@ Tree.prototype = {
             }
         }
 
+    },
+
+    rotateRing(ring, variance, right = false) {
+        const {
+            trunkRotationX,
+            trunkRotationY,
+            trunkRotationZ,
+            branchRotationX,
+            branchRotationY,
+            branchRotationZ,
+            segmentsPerBranch,
+        } = this.settings;
+        const rotationPerSegment = 1 / segmentsPerBranch;
+        const xRot = right ? branchRotationX * -1 : trunkRotationX;
+        const yRot = right ? branchRotationY * -1 : trunkRotationY;
+        const zRot = right ? branchRotationZ * -1 : trunkRotationZ;
+
+        ring.rotation.x += Math.radians(xRot * rotationPerSegment * variance);
+        ring.rotation.y += Math.radians(yRot * rotationPerSegment * variance);
+        ring.rotation.z += Math.radians(zRot * rotationPerSegment * variance);
     },
 
     addLeaf(matrix, scale) {
