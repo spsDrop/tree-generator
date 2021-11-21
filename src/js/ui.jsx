@@ -2,16 +2,22 @@
 import { jsx } from '@emotion/react';
 import { css } from '@emotion/react';
 import React from 'react';
+import { Gestures } from 'react-gesture-handler';
 import ReactSlider from 'react-slider';
-import {throttle} from './utils'
+import { FpsCounter } from './fps-counter';
+import {throttle} from './utils';
+
+const boxStyles = css`
+    padding: 1rem;
+    background: rgba(72, 88, 66, 0.774);
+    border-radius: 0.5rem;
+    color: #b9ccb9;
+`
 
 const controlsStyle = css`
     position: absolute;
     right: 2rem;
     bottom: 1rem;
-    padding: 1rem;
-    background: rgba(140, 151, 136, 0.25);
-    border-radius: 0.5rem;
 `;
 
 const sectionStyle = css`
@@ -24,7 +30,7 @@ const sliderStyle = css`
         height: 1rem;
         .track {
             height: 0.5rem;
-            background: rgba(140, 151, 136, 0.45);
+            background: rgba(151, 173, 143, 0.45);
             top: 0.25rem;
         }
         .thumb {
@@ -37,7 +43,7 @@ const sliderStyle = css`
     }
 
     b {
-        color: #2d302c;
+        color: #758d6c;
     }
 `;
 
@@ -52,6 +58,21 @@ const scrollArea = css`
     max-height: 90vh;
 `;
 
+const bugStyles = css`
+    position: absolute;
+    left: 2rem;
+    bottom: 1rem;
+    padding
+`;
+
+const eventArea = css`
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+`
+
 function defaultSettings(){
     return  {
         seed: 0.5608898704217697,
@@ -64,18 +85,18 @@ function defaultSettings(){
 
         trunkLengthDecay: 0.16,
         trunkRadiusDecay: 0.07,
-        trunkRotationX: 16,
-        trunkRotationY: 18,
-        trunkRotationZ: 17,
+        trunkRotationX: 5,
+        trunkRotationY: 10,
+        trunkRotationZ: 25,
 
         
         branchDepth: 10,
         branchLengthDecay: 0.2,
         branchRadiusDecay: 0.09,
         branchRadiusDecayPerSegment: 0.09,
-        branchRotationX: 17,
-        branchRotationY: 46,
-        branchRotationZ: 24,
+        branchRotationX: 20,
+        branchRotationY: 24,
+        branchRotationZ: 35,
 
 
         branchDepth: 10,
@@ -87,7 +108,7 @@ function defaultSettings(){
         hidden: false,
         noise: true,
         noiseScale: 1/60,
-        noiseFactor: 0.75
+        noiseFactor: 0.5
     };
 };
 
@@ -118,6 +139,8 @@ export default class TreeUI extends React.Component{
             savedSettings.leafScaleFactor = savedSettings.leafScaleFactor || 1;
             savedSettings.leafRelativeScaleFactor = savedSettings.leafRelativeScaleFactor || 0.5;
         }
+
+        this.eventRef = React.createRef();
 
         this.state = savedSettings;
     }
@@ -166,12 +189,18 @@ export default class TreeUI extends React.Component{
 
     updateTree = throttle(() => {
         this.props.treeScene.generateTree(this.state);
+        this.setState({
+            faceCount: this.props.treeScene.getFaceCount()
+        })
     }, 500);
 
     componentDidMount(){
         this.updateTree();
         this.props.treeScene.toggleRotation(this.state.rotate);
         this.props.treeScene.render();
+        this.setState({
+            faceCount: this.props.treeScene.getFaceCount()
+        })
     }
 
     renderSlider(prop, defaults, float){
@@ -213,79 +242,142 @@ export default class TreeUI extends React.Component{
         this.saveSettings();
     }
 
+    spinHome = null;
+    rotation = 0;
+
+    onSpinStart = (e) => {
+        this.spinHome = { x: e.clientX };
+        this.props.treeScene.manualRotation = true;
+        this.rotation = this.props.treeScene.getRotation();
+    }
+
+    onSpinMove = (e) => {
+        if (this.spinHome) {
+            const offsetPercent = (e.clientX - this.spinHome.x) / window.innerWidth;
+            this.props.treeScene.setRotation(this.rotation + offsetPercent * 2 * Math.PI);
+        }
+    }
+
+    onSpinEnd = () => {
+        this.spinHome = null;
+        this.props.treeScene.manualRotation = false;
+    }
+
+    onScaleStart = (e) => {
+        console.log(e);
+    }
+
+    onScaleMove = (e) => {
+        console.log(e);
+    }
+
+    onScaleEnd = (e) => {
+        console.log(e)
+    }
+
     render(){
-        return (<div css={controlsStyle}>
-            <div css={scrollArea} style={{display: this.state.hidden ? 'none' : 'block'}}>
-                <div css={sectionStyle}>
-                    <h3>Geometry</h3>
-                    {this.renderSlider("branchDepth", this.ranges.depth)}
-                    {this.renderSlider("segmentsPerBranch", this.ranges.segments)}
-                    {this.renderSlider("segmentLength", this.ranges.length, true)}
-                    {this.renderSlider("sectionsPerSegment", this.ranges.sections)}
-                    {this.renderSlider("initialRadius", this.ranges.length, true)}
-                </div>
-                <div css={sectionStyle}>
-                    <h3>Decays</h3>
-                    {this.renderSlider("trunkLengthDecay", this.ranges.decay, true)}
-                    {this.renderSlider("branchLengthDecay", this.ranges.decay, true)}
-                    {this.renderSlider("trunkRadiusDecay", this.ranges.decay, true)}
-                    {this.renderSlider("branchRadiusDecay", this.ranges.decay, true)}
-                    {this.renderSlider("branchRadiusDecayPerSegment", this.ranges.decay, true)}
-                </div>
-                <div css={sectionStyle}>
-                    <h3>Leaves</h3>
+        return (
+        <>
+            <Gestures
+                recognizers={{
+                    Pinch: {
+                        events: {
+                            pinchstart: this.onScaleStart,
+                            pinchmove: this.onScaleMove,
+                            pinchend: this.onScaleEnd,
+                        }
+                    }
+                }}
+            >
+                <div css={eventArea} 
+                    onTouchStart={this.onSpinStart}
+                    onTouchMove={this.onSpinMove}
+                    onTouchEnd={this.onSpinEnd}
+                    onTouchCancel={this.onSpinEnd}
+                    onMouseDown={this.onSpinStart}
+                    onMouseMove={this.onSpinMove}
+                    onMouseUp={this.onSpinEnd}
+                    onMouseLeave={this.onSpinEnd}
+                />
+            </Gestures>
+            <div css={[bugStyles, boxStyles]}>
+                <p><FpsCounter treeScene={this.props.treeScene} /></p>
+                <p>Face count {this.state.faceCount}</p>
+            </div>
+            <div css={[controlsStyle, boxStyles]}>
+                <div css={scrollArea} style={{display: this.state.hidden ? 'none' : 'block'}}>
                     <div css={sectionStyle}>
-                        <label>Do Leaves <input type="checkbox" checked={this.state.doLeaves} onChange={()=>{
-                            this.setState({doLeaves:!this.state.doLeaves}, ()=>{
-                                this.saveSettings();
-                                this.updateTree();
-                            });
+                        <h3>Geometry</h3>
+                        {this.renderSlider("branchDepth", this.ranges.depth)}
+                        {this.renderSlider("segmentsPerBranch", this.ranges.segments)}
+                        {this.renderSlider("segmentLength", this.ranges.length, true)}
+                        {this.renderSlider("sectionsPerSegment", this.ranges.sections)}
+                        {this.renderSlider("initialRadius", this.ranges.length, true)}
+                    </div>
+                    <div css={sectionStyle}>
+                        <h3>Decays</h3>
+                        {this.renderSlider("trunkLengthDecay", this.ranges.decay, true)}
+                        {this.renderSlider("branchLengthDecay", this.ranges.decay, true)}
+                        {this.renderSlider("trunkRadiusDecay", this.ranges.decay, true)}
+                        {this.renderSlider("branchRadiusDecay", this.ranges.decay, true)}
+                        {this.renderSlider("branchRadiusDecayPerSegment", this.ranges.decay, true)}
+                    </div>
+                    <div css={sectionStyle}>
+                        <h3>Leaves</h3>
+                        <div css={sectionStyle}>
+                            <label>Do Leaves <input type="checkbox" checked={this.state.doLeaves} onChange={()=>{
+                                this.setState({doLeaves:!this.state.doLeaves}, ()=>{
+                                    this.saveSettings();
+                                    this.updateTree();
+                                });
+                            }}/></label>
+                        </div>
+                        {this.renderSlider("leafBranchDepth", {min: 1, max: this.state.branchDepth-1})}
+                        {this.renderSlider("leafScaleFactor", {max: 3, min: 0}, true)}
+                        {this.renderSlider("leafRelativeScaleFactor", {max: 1, min: 0}, true)}
+                    </div>
+                    <div css={sectionStyle}>
+                        <h3>Noise</h3>
+                        <div css={sectionStyle}>
+                            <label>Do Noise <input type="checkbox" checked={this.state.noise} onChange={()=>{
+                                this.setState({noise:!this.state.noise}, ()=>{
+                                    this.saveSettings();
+                                    this.updateTree();
+                                });
+                            }}/></label>
+                        </div>
+                        {this.renderSlider("noiseScale", {max: 1, min: 1/200}, true)}
+                        {this.renderSlider("noiseFactor", {max: 1, min: 0}, true)}
+                    </div>
+                    <div css={sectionStyle}>
+                        <h3>Rotations</h3>
+                        {this.renderSlider("trunkRotationX", this.ranges.rotation)}
+                        {this.renderSlider("trunkRotationY", this.ranges.rotation)}
+                        {this.renderSlider("trunkRotationZ", this.ranges.rotation)}
+                        {this.renderSlider("branchRotationX", this.ranges.rotation)}
+                        {this.renderSlider("branchRotationY", this.ranges.rotation)}
+                        {this.renderSlider("branchRotationZ", this.ranges.rotation)}
+                    </div>
+                    <div css={sectionStyle}>
+                        <button onClick={this.handleReset}>Reset to default settings</button>
+                    </div>
+                    <div css={sectionStyle}>
+                        <label>Seed <b>{this.state.seed}</b></label><br/>
+                        <button onClick={this.handleNewSeed}>
+                            Generate New Seed
+                        </button>
+                    </div>
+                    <div css={sectionStyle}>
+                        <label>Rotate <input type="checkbox" checked={this.state.rotate} onChange={()=>{
+                            this.setState({rotate:!this.state.rotate}, this.handleToggleRotate);
                         }}/></label>
                     </div>
-                    {this.renderSlider("leafBranchDepth", {min: 1, max: this.state.branchDepth-1})}
-                    {this.renderSlider("leafScaleFactor", {max: 3, min: 0}, true)}
-                    {this.renderSlider("leafRelativeScaleFactor", {max: 1, min: 0}, true)}
                 </div>
-                <div css={sectionStyle}>
-                    <h3>Noise</h3>
-                    <div css={sectionStyle}>
-                        <label>Do Noise <input type="checkbox" checked={this.state.noise} onChange={()=>{
-                            this.setState({noise:!this.state.noise}, ()=>{
-                                this.saveSettings();
-                                this.updateTree();
-                            });
-                        }}/></label>
-                    </div>
-                    {this.renderSlider("noiseScale", {max: 1, min: 1/200}, true)}
-                    {this.renderSlider("noiseFactor", {max: 1, min: 0}, true)}
-                </div>
-                <div css={sectionStyle}>
-                    <h3>Rotations</h3>
-                    {this.renderSlider("trunkRotationX", this.ranges.rotation)}
-                    {this.renderSlider("trunkRotationY", this.ranges.rotation)}
-                    {this.renderSlider("trunkRotationZ", this.ranges.rotation)}
-                    {this.renderSlider("branchRotationX", this.ranges.rotation)}
-                    {this.renderSlider("branchRotationY", this.ranges.rotation)}
-                    {this.renderSlider("branchRotationZ", this.ranges.rotation)}
-                </div>
-                <div css={sectionStyle}>
-                    <button onClick={this.handleReset}>Reset to default settings</button>
-                </div>
-                <div css={sectionStyle}>
-                    <label>Seed <b>{this.state.seed}</b></label><br/>
-                    <button onClick={this.handleNewSeed}>
-                        Generate New Seed
-                    </button>
-                </div>
-                <div css={sectionStyle}>
-                    <label>Rotate <input type="checkbox" checked={this.state.rotate} onChange={()=>{
-                        this.setState({rotate:!this.state.rotate}, this.handleToggleRotate);
-                    }}/></label>
+                <div css={toggleStyles} onClick={this.toggle}>
+                    {this.state.hidden ? 'Show Settings' : 'Hide Settings' }
                 </div>
             </div>
-            <div css={toggleStyles} onClick={this.toggle}>
-                {this.state.hidden ? 'Show Settings' : 'Hide Settings' }
-            </div>
-        </div>);
+        </>
+        );
     }
 }

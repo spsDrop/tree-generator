@@ -25,6 +25,9 @@ module.exports = {
         template: Path.join(__dirname, 'src', "index.html"),
       }),
     ],
+    resolve: {
+      extensions: ['', '.js', '.jsx'],
+    },
     watchOptions: {
       poll: true,
       ignored: '**/node_modules',

@@ -9,6 +9,8 @@ export function Leaf(){
     leafObj = this.object = new T.Object3D();
     this.geometry = this.generateGeometry();
     leaf = new T.Mesh( this.geometry, material );
+    leaf.castShadow = true;
+    leaf.receiveShadow = true;
     leafObj.add(leaf);
     this.obj = leaf;
 };
