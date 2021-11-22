@@ -49,6 +49,16 @@ export class Leaves {
         geometry.faces.push(new T.Face3(firstVert+5,firstVert+6,firstVert+3));
         geometry.faces.push(new T.Face3(firstVert+5,firstVert+4,firstVert+7));
         geometry.faces.push(new T.Face3(firstVert+6,firstVert+5,firstVert+7));
+
+        
+        geometry.faces.push(new T.Face3(firstVert,firstVert+1,firstVert+8));
+        geometry.faces.push(new T.Face3(firstVert,firstVert+8,firstVert+3));
+        geometry.faces.push(new T.Face3(firstVert+4,firstVert+8,firstVert+1));
+        geometry.faces.push(new T.Face3(firstVert+8,firstVert+4,firstVert+9));
+        geometry.faces.push(new T.Face3(firstVert+9,firstVert+3,firstVert+8));
+        geometry.faces.push(new T.Face3(firstVert+9,firstVert+6,firstVert+3));
+        geometry.faces.push(new T.Face3(firstVert+9,firstVert+4,firstVert+7));
+        geometry.faces.push(new T.Face3(firstVert+6,firstVert+9,firstVert+7));
     }
 
     generateLeafGeometry() {
@@ -65,6 +75,10 @@ export class Leaves {
         geometry.vertices.push(new T.Vector3(1.5,0.15,-0.75));
     
         geometry.vertices.push(new T.Vector3(2.5,-0.25,0));
+
+        
+        geometry.vertices.push(new T.Vector3(0.75,0.3,0));
+        geometry.vertices.push(new T.Vector3(1.5,0.15,0));
     
         return geometry;
     }

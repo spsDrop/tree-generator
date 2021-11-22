@@ -90,7 +90,7 @@ function defaultSettings(){
         seed: 0.5608898704217697,
 
         doLeaves: true,
-        leafBranchDepth: 4,
+        leafBranchDepth: 2,
         leafScaleFactor: 1,
         leafRelativeScaleFactor: 0.5,
 
