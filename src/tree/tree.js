@@ -1,6 +1,6 @@
 import * as T from "../../lib/three";
-import { Leaf } from "./leaf";
-import { Noise } from "./utils/noise";
+import { Leaf, Leaves } from "./leaves";
+import { applyNoiseOffset, Noise } from "./utils/noise";
 import { RNG } from "./utils/rng";
 
 // Converts from degrees to radians.
@@ -32,8 +32,7 @@ Tree.prototype = {
                     } );
 
         material.side = T.DoubleSide;
-        
-        this.leaves = new T.Object3D();
+        this.leaves = new Leaves();
 
         const treeMesh = new T.Mesh( this.generateGeometry(), material );
         treeMesh.castShadow = true;
@@ -43,9 +42,9 @@ Tree.prototype = {
         this.obj.add(treeMesh);
 
         if (this.settings.doLeaves) {
-            this.obj.add(this.leaves);
+            this.leaves.calculateNormals();
+            this.obj.add(this.leaves.mesh);
         }
-        
     },
 
     generateGeometry: function generateGeometry(){
@@ -95,21 +94,12 @@ Tree.prototype = {
         //     console.log('scalar', noiseScalar);
         // }
         const vertCount = geometry.vertices.length;
+        const {noiseScale, noiseFactor} = this.settings;
 
         for(let i = 0; i < vertCount; i += 1){
-            this.applyNoiseOffset(geometry.vertices[i]);
+            applyNoiseOffset(geometry.vertices[i], this.noise, noiseScale, noiseFactor);
             
         }
-    },
-
-    applyNoiseOffset(vert) {
-        const { noiseScale, noiseFactor } = this.settings;
-        const noiseScalar = noiseFactor * this.noise.perlin3(
-            vert.x * noiseScale,
-            vert.y * noiseScale,
-            vert.z * noiseScale,
-        )
-        vert.multiplyScalar(1+noiseScalar);
     },
 
     generateBranch(geometry, currentBranchDepth, initialSegmentLength, sectionsPerSegment, initialRadius, ring, isRight = false){
@@ -224,14 +214,16 @@ Tree.prototype = {
         ring.rotation.z += Math.radians(zRot * rotationPerSegment * variance);
     },
 
-    addLeaf(matrix, scale) {
-        const leaf = new Leaf();
-        leaf.obj.applyMatrix(matrix);
-        if (this.settings.noise) {
-            this.applyNoiseOffset(leaf.obj.position);
-        }
-        leaf.obj.scale.x = leaf.obj.scale.y = leaf.obj.scale.z = scale;
-        this.leaves.add(leaf.obj);
+    addLeaf(matrix, leafScale) {
+        const {noise: doNoise, noiseScale, noiseFactor} = this.settings;
+        this.leaves.addLeaf({
+            matrix,
+            doNoise,
+            leafScale,
+            noise: this.noise,
+            noiseScale,
+            noiseFactor
+        });
     },
 
     getRotationVariance() {

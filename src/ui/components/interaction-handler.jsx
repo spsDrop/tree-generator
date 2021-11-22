@@ -67,7 +67,6 @@ export function InteractionHander({treeScene}) {
 
     const onScaleStep = (e) => {
         if (!isNaN(e.deltaY)) {
-            console.log('scale step', e);
             const offsetPercent = e.deltaY / window.innerHeight;
             treeScene.setScale(treeScene.scale + offsetPercent);
         }

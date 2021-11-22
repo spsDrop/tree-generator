@@ -2,6 +2,15 @@
  * Taken form https://github.com/josephg/noisejs/blob/master/perlin.js
 */
 
+export function applyNoiseOffset(vert, noise, noiseScale, noiseFactor) {
+  const noiseScalar = noiseFactor * noise.perlin3(
+      vert.x * noiseScale,
+      vert.y * noiseScale,
+      vert.z * noiseScale,
+  )
+  vert.multiplyScalar(1+noiseScalar);
+}
+
 export function Noise() {
     function Grad(x, y, z) {
     this.x = x; this.y = y; this.z = z;

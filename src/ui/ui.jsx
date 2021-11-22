@@ -277,6 +277,14 @@ export default class TreeUI extends React.Component{
             </div>
             <div css={[controlsStyle, boxStyles]}>
                 <div css={scrollArea} style={{display: this.state.hidden ? 'none' : 'block'}}>
+                    <CollapsableSection title="Rotations">
+                        {this.renderSlider("trunkRotationX", this.ranges.rotation)}
+                        {this.renderSlider("trunkRotationY", this.ranges.rotation)}
+                        {this.renderSlider("trunkRotationZ", this.ranges.rotation)}
+                        {this.renderSlider("branchRotationX", this.ranges.rotation)}
+                        {this.renderSlider("branchRotationY", this.ranges.rotation)}
+                        {this.renderSlider("branchRotationZ", this.ranges.rotation)}
+                    </CollapsableSection>
                     <CollapsableSection title="Geometry">
                         {this.renderSlider("branchDepth", this.ranges.depth)}
                         {this.renderSlider("segmentsPerBranch", this.ranges.segments)}
@@ -306,13 +314,17 @@ export default class TreeUI extends React.Component{
                         {this.renderSlider("leafScaleFactor", {max: 3, min: 0}, true)}
                         {this.renderSlider("leafRelativeScaleFactor", {max: 1, min: 0}, true)}
                     </CollapsableSection>
-                    <CollapsableSection title="Rotations">
-                        {this.renderSlider("trunkRotationX", this.ranges.rotation)}
-                        {this.renderSlider("trunkRotationY", this.ranges.rotation)}
-                        {this.renderSlider("trunkRotationZ", this.ranges.rotation)}
-                        {this.renderSlider("branchRotationX", this.ranges.rotation)}
-                        {this.renderSlider("branchRotationY", this.ranges.rotation)}
-                        {this.renderSlider("branchRotationZ", this.ranges.rotation)}
+                    <CollapsableSection title="Noise Field">
+                        <div css={sectionStyle}>
+                            <label>Do Noise <input type="checkbox" checked={this.state.noise} onChange={()=>{
+                                this.setState({noise:!this.state.noise}, ()=>{
+                                    this.saveSettings();
+                                    this.updateTree();
+                                });
+                            }}/></label>
+                        </div>
+                        {this.renderSlider("noiseScale", {max: 1, min: 1/200}, true)}
+                        {this.renderSlider("noiseFactor", {max: 1, min: 0}, true)}
                     </CollapsableSection>
                     <div css={sectionStyle}>
                         <label>Auto rotate <input type="checkbox" checked={this.state.rotate} onChange={()=>{

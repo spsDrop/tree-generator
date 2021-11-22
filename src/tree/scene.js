@@ -122,7 +122,6 @@ TreeScene.prototype = {
     
     setScale(scale) {
         this.scale = Math.min(3,Math.max(0.5, scale));
-        console.log('scale', this.scale);
         this.camera.position.set(...this.cameraPosition);
         this.camera.position.multiplyScalar(this.scale);
         this.camera.lookAt(this.cameraTarget);
