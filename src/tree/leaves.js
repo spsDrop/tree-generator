@@ -1,4 +1,5 @@
 import * as T from "../../lib/three";
+import { cloneVerticesWithTransform } from "./utils/clone-vertices-with-transform";
 import { applyNoiseOffset } from "./utils/noise";
 
 
@@ -10,7 +11,7 @@ export class Leaves {
         material.side = T.DoubleSide;
         const mesh = new T.Mesh(new T.Geometry(), material);
         mesh.castShadow = true;
-        mesh.recieveShadow = true;
+        //mesh.receiveShadow = true;
 
         this.mesh = mesh;
     }
@@ -23,17 +24,14 @@ export class Leaves {
         noiseScale,
         noiseFactor,
     }){
-        const newLeaf = this.leaf.clone();
-        const leafTransform = new T.Object3D();
+        const leafTransform = new T.Mesh(this.leaf);
         leafTransform.applyMatrix(matrix)
         if (doNoise) {
             applyNoiseOffset(leafTransform.position, noise, noiseScale, noiseFactor);
         }
         leafTransform.scale.x = leafTransform.scale.y = leafTransform.scale.z = leafScale;
-        leafTransform.updateMatrix();
-        newLeaf.applyMatrix(leafTransform.matrix);
-        this.mesh.geometry.vertices.push(...newLeaf.vertices);
-        this.createFaces(this.mesh.geometry.vertices.length - newLeaf.vertices.length);
+        cloneVerticesWithTransform(leafTransform, this.mesh.geometry)
+        this.createFaces(this.mesh.geometry.vertices.length - this.leaf.vertices.length);
     }
 
     calculateNormals() {

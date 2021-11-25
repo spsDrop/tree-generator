@@ -8,6 +8,7 @@ import { CollapsableSection } from './components/collapsable-section';
 import { FpsCounter } from './components/fps-counter';
 import { InteractionHander } from './components/interaction-handler';
 import {throttle} from './utils/throttle';
+import { Download } from './components/download';
 
 const boxStyles = css`
     padding: 1rem;
@@ -61,6 +62,7 @@ const toggleStyles = css`
     font-weight: bold;
     padding: 0.2rem 0.3rem;
     cursor: pointer;
+    text-align: end;
 `;
 
 const scrollArea = css`
@@ -326,20 +328,26 @@ export default class TreeUI extends React.Component{
                         {this.renderSlider("noiseScale", {max: 1, min: 1/200}, true)}
                         {this.renderSlider("noiseFactor", {max: 1, min: 0}, true)}
                     </CollapsableSection>
-                    <div css={sectionStyle}>
-                        <label>Auto rotate <input type="checkbox" checked={this.state.rotate} onChange={()=>{
-                            this.setState({rotate:!this.state.rotate}, this.handleToggleRotate);
-                        }}/></label>
-                    </div>
-                    <div css={sectionStyle}>
-                        <label>Seed <b>{this.state.seed}</b></label>
-                        <button onClick={this.handleNewSeed}>
-                            Generate New Seed
-                        </button>
-                    </div>
-                    <div css={sectionStyle}>
-                        <button onClick={this.handleReset}>Reset to default settings</button>
-                    </div>
+                    
+                    <CollapsableSection title="General" defaultOpen={true}>
+                        <div css={sectionStyle}>
+                            <label>Auto rotate <input type="checkbox" checked={this.state.rotate} onChange={()=>{
+                                this.setState({rotate:!this.state.rotate}, this.handleToggleRotate);
+                            }}/></label>
+                        </div>
+                        <div css={sectionStyle}>
+                            <label>Seed <b>{this.state.seed}</b></label>
+                            <button onClick={this.handleNewSeed}>
+                                Generate New Seed
+                            </button>
+                        </div>
+                        <div css={sectionStyle}>
+                            <button onClick={this.handleReset}>Reset to default settings</button>
+                        </div>
+                        <div css={sectionStyle}>
+                            <Download treeScene={this.props.treeScene}/>
+                        </div>
+                    </CollapsableSection>
                 </div>
                 <div css={toggleStyles} onClick={this.toggle}>
                     {this.state.hidden ? 'Show Settings' : 'Hide Settings' }

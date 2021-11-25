@@ -1,7 +1,8 @@
 import * as T from "../../lib/three";
-import { Leaf, Leaves } from "./leaves";
+import { Leaves } from "./leaves";
 import { applyNoiseOffset, Noise } from "./utils/noise";
 import { RNG } from "./utils/rng";
+import { cloneVerticesWithTransform } from "./utils/clone-vertices-with-transform"
 
 // Converts from degrees to radians.
 Math.radians = function(degrees) {
@@ -78,21 +79,6 @@ Tree.prototype = {
     },
 
     generateVertexNoise: function(geometry) {
-        // const faceCount = geometry.faces.length;
-        // const noise = new Noise(this.settings.seed);
-        // const noiseScalingFactor = 1/1
-
-        // for(let i = 0; i < faceCount; i += 1){
-        //     const face = geometry.faces[i];
-        //     const aVert = geometry.vertices[face.a];
-        //     const noiseScalar = noise.perlin3(
-        //         aVert.x * noiseScalingFactor,
-        //         aVert.y * noiseScalingFactor,
-        //         aVert.z * noiseScalingFactor,
-        //     )
-        //     face.normal.multiplyScalar(noiseScalar);
-        //     console.log('scalar', noiseScalar);
-        // }
         const vertCount = geometry.vertices.length;
         const {noiseScale, noiseFactor} = this.settings;
 
@@ -124,9 +110,15 @@ Tree.prototype = {
         if(!ring){
             this.maxRadius = radius;
             ring = this.generateRing(radius, sectionsPerSegment);
+            
+            geometry.vertices.push(new T.Vector3(0,0,0));
+            cloneVerticesWithTransform(ring, geometry);
+            this.fillHole(geometry, sectionsPerSegment, 1, 0);
+            console.log(JSON.stringify(geometry.faces,null,2));
+        } else {
+            cloneVerticesWithTransform(ring, geometry);
         }
-        this.cloneVerticesWithTransform(ring.children[0].geometry, geometry, ring.matrix);
-
+        
         const leftVariance = this.getRotationVariance();
 
         for(let i = 0; i < segmentsPerBranch; i++) {
@@ -136,13 +128,16 @@ Tree.prototype = {
             if (branchCount !== branchDepth) {
                 this.rotateRing(ring, leftVariance, isRight);
             }
-            ring.updateMatrix();
+
+            cloneVerticesWithTransform(ring, geometry);
 
             radius -= radius * 0.05;
 
-            this.cloneVerticesWithTransform(ring.children[0].geometry, geometry, ring.matrix);
-
             this.generateSegment(geometry, sectionsPerSegment, 1);
+        }
+
+        if (branchCount === branchDepth) {
+            console.log(JSON.stringify(geometry.faces,null,2));
         }
 
         branchCount--;
@@ -156,9 +151,8 @@ Tree.prototype = {
             this.rotateRing(leftRing, leftVariance);
             leftRing.scale.x = leftRing.scale.y = leftRing.scale.z = radius / this.maxRadius;
             leftRing.translateY(segmentLength);
-            leftRing.updateMatrix();
 
-            this.cloneVerticesWithTransform(leftRing.children[0].geometry, geometry, leftRing.matrix);
+            cloneVerticesWithTransform(leftRing, geometry);
 
             this.generateSegment(geometry, sectionsPerSegment, 1);
 
@@ -172,9 +166,8 @@ Tree.prototype = {
             this.rotateRing(rightRing, rightVariance, true);
             rightRing.scale.x = rightRing.scale.y = rightRing.scale.z = radius / this.maxRadius;
             rightRing.translateY(segmentLength);
-            rightRing.updateMatrix();
 
-            this.cloneVerticesWithTransform(rightRing.children[0].geometry, geometry, rightRing.matrix);
+            cloneVerticesWithTransform(rightRing, geometry);
 
             this.generateSegment(geometry, sectionsPerSegment, 2);
 
@@ -190,6 +183,9 @@ Tree.prototype = {
                     this.addLeaf(rightRing.matrix, leafScale)
                 }
             }
+        } else {
+            geometry.vertices.push(ring.position.clone());
+            this.fillHole(geometry, sectionsPerSegment, geometry.vertices.length - 1 - sectionsPerSegment, geometry.vertices.length - 1);
         }
 
     },
@@ -230,9 +226,19 @@ Tree.prototype = {
         return this.rng.nextRange(700,1400)/1000;
     },
 
+    fillHole(geometry, ringSize, start, pointIndex) {
+        const end = start + ringSize + 1;
+
+        for(let i = start + 1; i < end; i++) {
+            geometry.faces.push(new T.Face3(pointIndex, i-1, i));
+        }
+    },
+
     generateSegment: function(geometry, sections, ringOffset){
-        var vertexCount = geometry.vertices.length,
-            oldRingIndex, newRingIndex;
+        const vertexCount = geometry.vertices.length
+
+        let oldRingIndex
+        let newRingIndex;
 
         for (var j = 0; j < sections; j++) {
             oldRingIndex = vertexCount - (sections * ringOffset) * 2 + j;
@@ -261,29 +267,21 @@ Tree.prototype = {
      * @param sections {int}
      */
     generateRing: function(radius, sections){
-        var thetaIncrement = (2 * Math.PI)/sections,
-            ringObj = new T.Object3D(),
-            ring = new T.Geometry(),
-            vert;
-
-        ringObj.add(new T.Mesh(ring));
+        const thetaIncrement = (2 * Math.PI)/sections;
+        const ringGeom = new T.Geometry();
+        const ringMesh = new T.Mesh(ringGeom);
+        
 
         for(var i=0; i < sections; i++) {
-            vert = new T.Vector3(
+            const vert = new T.Vector3(
                 Math.sin(thetaIncrement * i) * radius,
                 0,
                 Math.cos(thetaIncrement * i) * radius
             );
 
-            ring.vertices.push(vert);
+            ringGeom.vertices.push(vert);
         }
 
-        return ringObj;
+        return ringMesh;
     },
-
-    cloneVerticesWithTransform:function( source, target, transformationMatrix ){
-        source.vertices.forEach(function(vert){
-            target.vertices.push( vert.clone().applyMatrix4( transformationMatrix) );
-        });
-    }
 };
