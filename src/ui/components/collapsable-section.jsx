@@ -11,7 +11,7 @@ const sectionStyle = css`
         color: #efffe9;
     }
 
-    button {
+    > button {
         border: none;
         background: none;
         color: inherit;

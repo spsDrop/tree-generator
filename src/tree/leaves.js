@@ -1,4 +1,5 @@
 import * as T from "../../lib/three";
+import { cloneVerticesWithTransform } from "./utils/clone-vertices-with-transform";
 import { applyNoiseOffset } from "./utils/noise";
 
 
@@ -10,7 +11,7 @@ export class Leaves {
         material.side = T.DoubleSide;
         const mesh = new T.Mesh(new T.Geometry(), material);
         mesh.castShadow = true;
-        mesh.recieveShadow = true;
+        //mesh.receiveShadow = true;
 
         this.mesh = mesh;
     }
@@ -23,17 +24,14 @@ export class Leaves {
         noiseScale,
         noiseFactor,
     }){
-        const newLeaf = this.leaf.clone();
-        const leafTransform = new T.Object3D();
+        const leafTransform = new T.Mesh(this.leaf);
         leafTransform.applyMatrix(matrix)
         if (doNoise) {
             applyNoiseOffset(leafTransform.position, noise, noiseScale, noiseFactor);
         }
         leafTransform.scale.x = leafTransform.scale.y = leafTransform.scale.z = leafScale;
-        leafTransform.updateMatrix();
-        newLeaf.applyMatrix(leafTransform.matrix);
-        this.mesh.geometry.vertices.push(...newLeaf.vertices);
-        this.createFaces(this.mesh.geometry.vertices.length - newLeaf.vertices.length);
+        cloneVerticesWithTransform(leafTransform, this.mesh.geometry)
+        this.createFaces(this.mesh.geometry.vertices.length - this.leaf.vertices.length);
     }
 
     calculateNormals() {
@@ -51,6 +49,16 @@ export class Leaves {
         geometry.faces.push(new T.Face3(firstVert+5,firstVert+6,firstVert+3));
         geometry.faces.push(new T.Face3(firstVert+5,firstVert+4,firstVert+7));
         geometry.faces.push(new T.Face3(firstVert+6,firstVert+5,firstVert+7));
+
+        
+        geometry.faces.push(new T.Face3(firstVert,firstVert+1,firstVert+8));
+        geometry.faces.push(new T.Face3(firstVert,firstVert+8,firstVert+3));
+        geometry.faces.push(new T.Face3(firstVert+4,firstVert+8,firstVert+1));
+        geometry.faces.push(new T.Face3(firstVert+8,firstVert+4,firstVert+9));
+        geometry.faces.push(new T.Face3(firstVert+9,firstVert+3,firstVert+8));
+        geometry.faces.push(new T.Face3(firstVert+9,firstVert+6,firstVert+3));
+        geometry.faces.push(new T.Face3(firstVert+9,firstVert+4,firstVert+7));
+        geometry.faces.push(new T.Face3(firstVert+6,firstVert+9,firstVert+7));
     }
 
     generateLeafGeometry() {
@@ -67,6 +75,10 @@ export class Leaves {
         geometry.vertices.push(new T.Vector3(1.5,0.15,-0.75));
     
         geometry.vertices.push(new T.Vector3(2.5,-0.25,0));
+
+        
+        geometry.vertices.push(new T.Vector3(0.75,0.3,0));
+        geometry.vertices.push(new T.Vector3(1.5,0.15,0));
     
         return geometry;
     }

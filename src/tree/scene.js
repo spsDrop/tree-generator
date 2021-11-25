@@ -1,5 +1,6 @@
 import * as T from "../../lib/three";
 import { Tree } from './tree.js';
+import { geometryToStl } from "./utils/geometry-to-stl";
 
 
 export function TreeScene(){
@@ -86,6 +87,10 @@ TreeScene.prototype = {
         this.tree.obj.position.y = -10;
         this.scene.add( this.tree.obj );
         this.scene.add( this.light.target );
+    },
+
+    getTreeStlBuffer() {
+        return geometryToStl(this.tree.obj.children.map(child => child.geometry));
     },
 
     toggleRotation(state) {
