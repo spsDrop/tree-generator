@@ -115,9 +115,6 @@ Tree.prototype = {
             geometry.vertices.push(new T.Vector3(0,0,0));
             cloneVerticesWithTransform(ring, geometry);
             this.fillHole(geometry, sectionsPerSegment, 1, 0);
-            console.log(JSON.stringify(geometry.faces,null,2));
-            console.log(JSON.stringify(geometry.faces.length,null,2));
-            console.log(JSON.stringify(geometry.vertices.length,null,2));
         } else {
             cloneVerticesWithTransform(ring, geometry);
         }
@@ -137,10 +134,6 @@ Tree.prototype = {
             radius -= radius * 0.05;
 
             this.generateSegment(geometry, sectionsPerSegment, 1);
-        }
-
-        if (branchCount === branchDepth) {
-            //console.log(JSON.stringify(geometry.faces,null,2));
         }
 
         branchCount--;
@@ -233,10 +226,10 @@ Tree.prototype = {
         const end = start + ringSize;
 
         for(let i = start + 1; i < end; i++) {
-            geometry.faces.push(new T.Face3(pointIndex, i-1, i));
+            geometry.faces.push(new T.Face3(i, i-1, pointIndex));
         }
 
-        geometry.faces.push(new T.Face3(pointIndex, start + ringSize -1, start))
+        geometry.faces.push(new T.Face3(start, start + ringSize -1, pointIndex))
     },
 
     generateSegment: function(geometry, sections, ringOffset){
