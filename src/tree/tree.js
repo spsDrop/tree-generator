@@ -15,18 +15,17 @@ Math.degrees = function(radians) {
 };
 
 
-export function Tree(settings){
-    this.settings = settings;
+export class Tree{
+    constructor(settings) {
+        this.settings = settings;
 
-    this.rng = new RNG(settings.seed);
-    this.noise = new Noise(this.settings.seed);
-    
-    this.generateTree();
-};
+        this.rng = new RNG(settings.seed);
+        this.noise = new Noise(this.settings.seed);
+        
+        this.generateTree();
+    }
 
-Tree.prototype = {
-
-    generateTree: function generateTree(){
+    generateTree(){
         var material = new T.MeshLambertMaterial( {
                         color: 0x85745a,
                         wireframe: false
@@ -46,9 +45,9 @@ Tree.prototype = {
             this.leaves.calculateNormals();
             this.obj.add(this.leaves.mesh);
         }
-    },
+    }
 
-    generateGeometry: function generateGeometry(){
+    generateGeometry(){
         const geometry = new T.Geometry();
     
         const {
@@ -76,9 +75,9 @@ Tree.prototype = {
         }
 
         return geometry;
-    },
+    }
 
-    generateVertexNoise: function(geometry) {
+    generateVertexNoise(geometry) {
         const vertCount = geometry.vertices.length;
         const {noiseScale, noiseFactor} = this.settings;
 
@@ -86,9 +85,9 @@ Tree.prototype = {
             applyNoiseOffset(geometry.vertices[i], this.noise, noiseScale, noiseFactor);
             
         }
-    },
+    }
 
-    generateBranch(geometry, currentBranchDepth, initialSegmentLength, sectionsPerSegment, initialRadius, ring, isRight = false){
+    generateBranch(geometry, currentBranchDepth, initialSegmentLength, sectionsPerSegment, initialRadius, ring, isRight = false) {
         let leftRing;
         let rightRing;
 
@@ -184,7 +183,7 @@ Tree.prototype = {
             this.fillHole(geometry, sectionsPerSegment, geometry.vertices.length - 1 - sectionsPerSegment, geometry.vertices.length - 1);
         }
 
-    },
+    }
 
     rotateRing(ring, variance, right = false) {
         const {
@@ -204,7 +203,7 @@ Tree.prototype = {
         ring.rotation.x += Math.radians(xRot * rotationPerSegment * variance);
         ring.rotation.y += Math.radians(yRot * rotationPerSegment * variance);
         ring.rotation.z += Math.radians(zRot * rotationPerSegment * variance);
-    },
+    }
 
     addLeaf(matrix, leafScale) {
         const {noise: doNoise, noiseScale, noiseFactor} = this.settings;
@@ -216,11 +215,11 @@ Tree.prototype = {
             noiseScale,
             noiseFactor
         });
-    },
+    }
 
     getRotationVariance() {
         return this.rng.nextRange(700,1400)/1000;
-    },
+    }
 
     fillHole(geometry, ringSize, start, pointIndex) {
         const end = start + ringSize;
@@ -230,9 +229,9 @@ Tree.prototype = {
         }
 
         geometry.faces.push(new T.Face3(start, start + ringSize -1, pointIndex))
-    },
+    }
 
-    generateSegment: function(geometry, sections, ringOffset){
+    generateSegment(geometry, sections, ringOffset) {
         const vertexCount = geometry.vertices.length
 
         let oldRingIndex
@@ -258,13 +257,13 @@ Tree.prototype = {
                 );
             }
         }
-    },
+    }
 
     /**
      * @param radius {int}
      * @param sections {int}
      */
-    generateRing: function(radius, sections){
+    generateRing(radius, sections) {
         const thetaIncrement = (2 * Math.PI)/sections;
         const ringGeom = new T.Geometry();
         const ringMesh = new T.Mesh(ringGeom);
@@ -281,5 +280,5 @@ Tree.prototype = {
         }
 
         return ringMesh;
-    },
+    }
 };

@@ -3,30 +3,29 @@ import { Tree } from './tree.js';
 import { geometryToStl } from "./utils/geometry-to-stl";
 
 
-export function TreeScene(){
-    this.renderer = new T.WebGLRenderer({
-        antialias: true
-    });
-    this.renderer.setSize( window.innerWidth, window.innerHeight );
-    this.renderer.setClearColor( 0xffffff );
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = T.PCFSoftShadowMap;
-    this.rotate = true;
+export class TreeScene{
 
-    this.setupScene();
-};
+    constructor(){
+        this.renderer = new T.WebGLRenderer({
+            antialias: true
+        });
+        this.renderer.setSize( window.innerWidth, window.innerHeight );
+        this.renderer.setClearColor( 0xffffff );
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = T.PCFSoftShadowMap;
+        this.rotate = true;
+
+        this.setupScene();
+    }
 
 
-TreeScene.prototype = {
-
-    setupScene: function setupScene() {
+    setupScene() {
         this.scene = new T.Scene();
 
         this.camera =
                 new T.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.camera.position.set(...this.cameraPosition);
         this.camera.lookAt(this.cameraTarget);
-    
 
         var light = new T.SpotLight(0xffffff, 0.8);
         light.position.set(60, 62, 20);
@@ -53,12 +52,12 @@ TreeScene.prototype = {
         this.scene.add(mesh);
         
         this.light = light;
-    },
+    };
 
-    cameraPosition: [20, 22, 20],
-    cameraTarget: new T.Vector3(0, 10, 0),
+    cameraPosition = [20, 22, 20];
+    cameraTarget = new T.Vector3(0, 10, 0);
 
-    interval: null,
+    interval = null;
 
     startCounter(cb) {
         this.interval = setInterval(() => {
@@ -66,13 +65,13 @@ TreeScene.prototype = {
             this.frameCount = 0;
             cb && cb(this.fps);
         }, 1000);
-    },
+    }
 
     stopCounter() {
         clearInterval(this.interval);
-    },
+    }
 
-    generateTree: function(settings){
+    generateTree(settings){
         let rotation = 0;
         if(this.tree){
             rotation = this.tree.obj.rotation.y;
@@ -87,17 +86,17 @@ TreeScene.prototype = {
         this.tree.obj.position.y = -10;
         this.scene.add( this.tree.obj );
         this.scene.add( this.light.target );
-    },
+    }
 
     getTreeStlBuffer() {
         return geometryToStl(this.tree.obj.children.map(child => child.geometry));
-    },
+    }
 
     toggleRotation(state) {
         this.rotate = state;
-    },
+    }
 
-    disposeObjectTree: function(obj){
+    disposeObjectTree(obj){
         obj.children.forEach((child)=>{
             if(child.children){
                 this.disposeObjectTree(child);
@@ -105,37 +104,37 @@ TreeScene.prototype = {
             child?.geometry?.dispose();
             child?.material?.dispose();
         });
-    },
+    }
 
     getFaceCount() {
         return this.renderer.info.render.faces;
-    },
+    }
 
-    lastFrame: Date.now(),
+    lastFrame = Date.now();
 
-    manualRotation: false,
+    manualRotation = false;
 
     getRotation() {
         return this.tree.obj.rotation.y
-    },
+    }
 
     setRotation(val) {
         this.tree.obj.rotation.y = val;
-    },
+    }
 
-    scale: 1,
+    scale = 1;
     
     setScale(scale) {
         this.scale = Math.min(3,Math.max(0.5, scale));
         this.camera.position.set(...this.cameraPosition);
         this.camera.position.multiplyScalar(this.scale);
         this.camera.lookAt(this.cameraTarget);
-    },
+    }
 
-    frameCount: 0,
-    fps: 0,
+    frameCount = 0
+    fps = 0;
 
-    render: function render() {
+    render() {
         const now = Date.now();
         if(this.tree && this.rotate || this.manualRotation) {
             if (!this.manualRotation) {

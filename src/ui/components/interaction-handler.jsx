@@ -24,7 +24,7 @@ const eventArea = css`
     touch-action: none;
 `
 
-export function InteractionHander({treeScene}) {
+export function InteractionHandler({treeScene}) {
 
     let spinHome = null;
     let rotation = 0;

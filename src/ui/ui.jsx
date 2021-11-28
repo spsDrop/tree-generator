@@ -6,7 +6,7 @@ import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import { CollapsableSection } from './components/collapsable-section';
 import { FpsCounter } from './components/fps-counter';
-import { InteractionHander } from './components/interaction-handler';
+import { InteractionHandler } from './components/interaction-handler';
 import {throttle} from './utils/throttle';
 import { Download } from './components/download';
 
@@ -272,7 +272,7 @@ export default class TreeUI extends React.Component{
     render(){
         return (
         <>
-            <InteractionHander treeScene={this.props.treeScene} />
+            <InteractionHandler treeScene={this.props.treeScene} />
             <div css={[bugStyles, boxStyles]}>
                 <p><FpsCounter treeScene={this.props.treeScene} /></p>
                 <p>Face count {this.state.faceCount}</p>
