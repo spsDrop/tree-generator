@@ -7,11 +7,12 @@ import {
     Object3D,
     Float32BufferAttribute,
 } from 'three';
-import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { Leaves } from "./leaves";
 import { applyNoiseOffset, Noise } from "./utils/noise";
 import { RNG } from "./utils/rng";
 import { cloneVerticesWithTransform } from "./utils/clone-vertices-with-transform";
+import {CSG} from './utils/csg'
+import { Matrix4 } from '../../lib/three';
 
 // Converts from degrees to radians.
 Math.radians = function(degrees) {
@@ -60,10 +61,6 @@ export class Tree{
 
     generateGeometry(){
         const bufferGeometry = new BufferGeometry();
-        const geometry = {
-            vertices: [],
-            faces: []
-        }
     
         const {
             branchDepth,
@@ -72,8 +69,7 @@ export class Tree{
             initialRadius,
         } = this.settings;
 
-        this.generateBranch(
-            geometry,
+        const geometry = this.generateBranch(
             branchDepth,
             segmentLength,
             sectionsPerSegment,
@@ -113,10 +109,7 @@ export class Tree{
         }
     }
 
-    generateBranch(geometry, currentBranchDepth, initialSegmentLength, sectionsPerSegment, initialRadius, ring, isRight = false) {
-        let leftRing;
-        let rightRing;
-
+    generateBranch(currentBranchDepth, initialSegmentLength, sectionsPerSegment, initialRadius, ring, isRight = false) {
         const {
             trunkLengthDecay,
             branchLengthDecay,
@@ -133,6 +126,11 @@ export class Tree{
         let branchCount = currentBranchDepth;
         let segmentLength = initialSegmentLength;
 
+        const geometry = {
+            vertices: [],
+            faces: [],
+        }
+
         if(!ring){
             this.maxRadius = radius;
             ring = this.generateRing(radius, sectionsPerSegment);
@@ -140,60 +138,82 @@ export class Tree{
             geometry.vertices.push(0,0,0);
             cloneVerticesWithTransform(ring, geometry);
             this.fillHole(geometry, sectionsPerSegment, 1, 0);
-        } else {
-            cloneVerticesWithTransform(ring, geometry);
         }
         
-        const leftVariance = this.getRotationVariance();
-
-        for(let i = 0; i < segmentsPerBranch; i++) {
-
-            ring.translateOnAxis(ring.worldToLocal(new Vector3(0,1,0)), segmentLength);
-            ring.scale.x = ring.scale.y = ring.scale.z = radius / this.maxRadius;
-            if (branchCount !== branchDepth) {
-                this.rotateRing(ring, leftVariance, isRight);
-            }
-
-            cloneVerticesWithTransform(ring, geometry);
-
-            radius -= radius * 0.05;
-
-            this.generateSegment(geometry, sectionsPerSegment, 1);
-        }
+        this.mergeGeometry(
+            geometry,
+            this.generateSection(ring, radius, segmentLength, branchCount, isRight)
+        );
 
         branchCount--;
 
         if(branchCount > 0){
-            leftRing = ring.clone();
-            segmentLength -= segmentLength * branchLengthDecay;
-            radius -= radius * branchRadiusDecay;
-
+            const leftRing = ring.clone();
+            const branchSegmentLength = segmentLength - segmentLength * branchLengthDecay;
+            const branchRadius = radius - radius * branchRadiusDecay;
+            const leftVariance = this.getRotationVariance()
 
             this.rotateRing(leftRing, leftVariance);
             leftRing.scale.x = leftRing.scale.y = leftRing.scale.z = radius / this.maxRadius;
-            leftRing.translateY(segmentLength);
+            leftRing.translateY(branchSegmentLength);
 
-            cloneVerticesWithTransform(leftRing, geometry);
+            const leftBranch = this.generateSection(
+                leftRing, 
+                branchRadius, 
+                branchSegmentLength, 
+                branchCount, 
+                false, 
+                leftVariance
+            );
 
-            this.generateSegment(geometry, sectionsPerSegment, 1);
+            const leftBranchMesh = new BufferGeometry();
+            leftBranchMesh.setAttribute('position', new Float32BufferAttribute(leftBranch.vertices, 3));
+            leftBranchMesh.setIndex(leftBranch.faces);
+            leftBranchMesh.computeVertexNormals();
+
+            const leftBsp = CSG.fromGeometry(leftBranchMesh);
 
 
-            rightRing = ring.clone();
-            segmentLength -= segmentLength * trunkLengthDecay;
-            radius -= radius * trunkRadiusDecay;
 
+            const rightRing = ring.clone();
+            const trunkSegmentLength = segmentLength - segmentLength * trunkLengthDecay;
+            const trunkRadius = radius - radius * trunkRadiusDecay;
             const rightVariance = this.getRotationVariance();
 
             this.rotateRing(rightRing, rightVariance, true);
             rightRing.scale.x = rightRing.scale.y = rightRing.scale.z = radius / this.maxRadius;
-            rightRing.translateY(segmentLength);
+            rightRing.translateY(branchSegmentLength);
 
-            cloneVerticesWithTransform(rightRing, geometry);
+            const rightBranch = this.generateSection(
+                rightRing, 
+                trunkRadius, 
+                trunkSegmentLength, 
+                branchCount, 
+                false, 
+                rightVariance
+            );
 
-            this.generateSegment(geometry, sectionsPerSegment, 2);
+            const rightBranchMesh = new BufferGeometry();
+            rightBranchMesh.setAttribute('position', new Float32BufferAttribute(rightBranch.vertices, 3));
+            rightBranchMesh.setIndex(rightBranch.faces);
+            rightBranchMesh.computeVertexNormals();
 
-            this.generateBranch(geometry, branchCount, segmentLength, sectionsPerSegment, radius, leftRing);
-            this.generateBranch(geometry, branchCount, segmentLength, sectionsPerSegment, radius, rightRing, true);
+
+            const rightBsp = CSG.fromGeometry(rightBranchMesh)
+
+
+            const branchesMesh = CSG.toMesh(rightBsp.union(leftBsp), new Matrix4());
+
+            this.mergeGeometry(geometry, {
+                faces: branchesMesh.geometry.index,
+                vertices: branchesMesh.geometry.getAttribute('position')
+            })
+
+            return trunkGeometry;
+
+
+            //this.generateBranch(geometry, branchCount, segmentLength, sectionsPerSegment, radius, leftRing);
+            //this.generateBranch(geometry, branchCount, segmentLength, sectionsPerSegment, radius, rightRing, true);
             
 
             if (this.settings.doLeaves && leafBranchDepth >= branchCount) {
@@ -205,11 +225,46 @@ export class Tree{
                 }
             }
         } else {
-            geometry.vertices.push(...ring.position.clone().toArray());
-            const vertCount = geometry.vertices.length / 3;
-            this.fillHole(geometry, sectionsPerSegment, vertCount - 1 - sectionsPerSegment, vertCount - 1);
+            // geometry.vertices.push(...ring.position.clone().toArray());
+            // const vertCount = geometry.vertices.length / 3;
+            // this.fillHole(geometry, sectionsPerSegment, vertCount - 1 - sectionsPerSegment, vertCount - 1);
         }
 
+    }
+
+    mergeGeometry(targetGeom, sourceGeom) {
+        const vertCount = targetGeom.vertices.length / 3;
+        targetGeom.vertices.push(...sourceGeom.vertices);
+        targetGeom.faces.push(...sourceGeom.faces.map(index => index + vertCount));
+        return targetGeom
+    }
+
+    generateSection(ring, radius, segmentLength, branchCount, isRight, variance = 1) {
+        const { 
+            branchDepth,
+            sectionsPerSegment,
+            segmentsPerBranch
+        } = this.settings;
+        const geometry = {
+            vertices: [],
+            faces: [],
+        };
+
+        for(let i = 0; i < segmentsPerBranch; i++) {
+            ring.translateOnAxis(ring.worldToLocal(new Vector3(0,1,0)), segmentLength);
+            ring.scale.x = ring.scale.y = ring.scale.z = radius / this.maxRadius;
+            if (branchCount !== branchDepth) {
+                this.rotateRing(ring, variance, isRight);
+            }
+
+            cloneVerticesWithTransform(ring, geometry);
+
+            if (geometry.vertices.length / 3 >= sectionsPerSegment * 2) {
+                this.generateSegment(geometry, sectionsPerSegment, 1);
+            }
+        }
+
+        return geometry;
     }
 
     rotateRing(ring, variance, right = false) {
