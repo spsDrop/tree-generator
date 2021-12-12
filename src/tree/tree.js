@@ -1,8 +1,17 @@
-import * as T from "../../lib/three";
+import {
+    MeshLambertMaterial,
+    DoubleSide,
+    Mesh,
+    BufferGeometry,
+    Vector3,
+    Object3D,
+    Float32BufferAttribute,
+} from 'three';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { Leaves } from "./leaves";
 import { applyNoiseOffset, Noise } from "./utils/noise";
 import { RNG } from "./utils/rng";
-import { cloneVerticesWithTransform } from "./utils/clone-vertices-with-transform"
+import { cloneVerticesWithTransform } from "./utils/clone-vertices-with-transform";
 
 // Converts from degrees to radians.
 Math.radians = function(degrees) {
@@ -26,29 +35,35 @@ export class Tree{
     }
 
     generateTree(){
-        var material = new T.MeshLambertMaterial( {
-                        color: 0x85745a,
-                        wireframe: false
-                    } );
+        const start = Date.now();
+        var material = new MeshLambertMaterial( {
+            color: 0x85745a,
+            wireframe: false,
+        } );
 
-        material.side = T.DoubleSide;
-        this.leaves = new Leaves();
+        material.side = DoubleSide;
+        //this.leaves = new Leaves();
 
-        const treeMesh = new T.Mesh( this.generateGeometry(), material );
+        const treeMesh = new Mesh( this.generateGeometry(), material );
         treeMesh.castShadow = true;
         treeMesh.receiveShadow = true;
 
-        this.obj = new T.Object3D();
+        this.obj = new Object3D();
         this.obj.add(treeMesh);
 
         if (this.settings.doLeaves) {
             this.leaves.calculateNormals();
             this.obj.add(this.leaves.mesh);
         }
+        console.log('Time to generate tree', Date.now() - start);
     }
 
     generateGeometry(){
-        const geometry = new T.Geometry();
+        const bufferGeometry = new BufferGeometry();
+        const geometry = {
+            vertices: [],
+            faces: []
+        }
     
         const {
             branchDepth,
@@ -65,25 +80,36 @@ export class Tree{
             initialRadius
         );
 
-        geometry.mergeVertices();
-        geometry.computeFaceNormals();
-        geometry.computeVertexNormals();
-        geometry.uvsNeedUpdate = true;
-
         if (this.settings.noise) {
             this.generateVertexNoise(geometry);
         }
 
-        return geometry;
+
+        //bufferGeometry.mergeVertices();
+        //bufferGeometry.computeFaceNormals();
+        bufferGeometry.setAttribute('position', new Float32BufferAttribute( geometry.vertices, 3 ));
+        bufferGeometry.setIndex(geometry.faces);
+        bufferGeometry.computeVertexNormals();
+        bufferGeometry.uvsNeedUpdate = true;
+
+        return bufferGeometry;
     }
 
     generateVertexNoise(geometry) {
-        const vertCount = geometry.vertices.length;
+        const vertCount = geometry.vertices.length / 3;
         const {noiseScale, noiseFactor} = this.settings;
 
         for(let i = 0; i < vertCount; i += 1){
-            applyNoiseOffset(geometry.vertices[i], this.noise, noiseScale, noiseFactor);
-            
+            const index = i * 3;
+            const vert = new Vector3(
+                geometry.vertices[index],
+                geometry.vertices[index+1],
+                geometry.vertices[index+2],
+            );
+            applyNoiseOffset(vert, this.noise, noiseScale, noiseFactor);
+            geometry.vertices[index] = vert.x;
+            geometry.vertices[index+1] = vert.y;
+            geometry.vertices[index+2] = vert.z;
         }
     }
 
@@ -111,7 +137,7 @@ export class Tree{
             this.maxRadius = radius;
             ring = this.generateRing(radius, sectionsPerSegment);
             
-            geometry.vertices.push(new T.Vector3(0,0,0));
+            geometry.vertices.push(0,0,0);
             cloneVerticesWithTransform(ring, geometry);
             this.fillHole(geometry, sectionsPerSegment, 1, 0);
         } else {
@@ -122,7 +148,7 @@ export class Tree{
 
         for(let i = 0; i < segmentsPerBranch; i++) {
 
-            ring.translateOnAxis(ring.worldToLocal(new T.Vector3(0,1,0)), segmentLength);
+            ring.translateOnAxis(ring.worldToLocal(new Vector3(0,1,0)), segmentLength);
             ring.scale.x = ring.scale.y = ring.scale.z = radius / this.maxRadius;
             if (branchCount !== branchDepth) {
                 this.rotateRing(ring, leftVariance, isRight);
@@ -179,8 +205,9 @@ export class Tree{
                 }
             }
         } else {
-            geometry.vertices.push(ring.position.clone());
-            this.fillHole(geometry, sectionsPerSegment, geometry.vertices.length - 1 - sectionsPerSegment, geometry.vertices.length - 1);
+            geometry.vertices.push(...ring.position.clone().toArray());
+            const vertCount = geometry.vertices.length / 3;
+            this.fillHole(geometry, sectionsPerSegment, vertCount - 1 - sectionsPerSegment, vertCount - 1);
         }
 
     }
@@ -225,14 +252,14 @@ export class Tree{
         const end = start + ringSize;
 
         for(let i = start + 1; i < end; i++) {
-            geometry.faces.push(new T.Face3(i, i-1, pointIndex));
+            geometry.faces.push(i, i-1, pointIndex);
         }
 
-        geometry.faces.push(new T.Face3(start, start + ringSize -1, pointIndex))
+        geometry.faces.push(start, start + ringSize -1, pointIndex);
     }
 
     generateSegment(geometry, sections, ringOffset) {
-        const vertexCount = geometry.vertices.length
+        const vertexCount = geometry.vertices.length / 3;
 
         let oldRingIndex
         let newRingIndex;
@@ -243,17 +270,17 @@ export class Tree{
 
             if (newRingIndex + 1 >= vertexCount) {
                 geometry.faces.push(
-                    new T.Face3(oldRingIndex, newRingIndex, oldRingIndex - sections + 1)
+                    oldRingIndex, newRingIndex, oldRingIndex - sections + 1
                 );
                 geometry.faces.push(
-                    new T.Face3(newRingIndex, newRingIndex - sections + 1, oldRingIndex - sections + 1)
+                    newRingIndex, newRingIndex - sections + 1, oldRingIndex - sections + 1
                 );
             } else {
                 geometry.faces.push(
-                    new T.Face3(oldRingIndex, newRingIndex, oldRingIndex + 1)
+                    oldRingIndex, newRingIndex, oldRingIndex + 1
                 );
                 geometry.faces.push(
-                    new T.Face3(newRingIndex, newRingIndex + 1, oldRingIndex + 1)
+                    newRingIndex, newRingIndex + 1, oldRingIndex + 1
                 );
             }
         }
@@ -265,19 +292,22 @@ export class Tree{
      */
     generateRing(radius, sections) {
         const thetaIncrement = (2 * Math.PI)/sections;
-        const ringGeom = new T.Geometry();
-        const ringMesh = new T.Mesh(ringGeom);
+        const ringGeom = new BufferGeometry();
+        const ringPoints = [];
+        const ringMesh = new Mesh(ringGeom);
         
 
         for(var i=0; i < sections; i++) {
-            const vert = new T.Vector3(
+            const vert = new Vector3(
                 Math.sin(thetaIncrement * i) * radius,
                 0,
                 Math.cos(thetaIncrement * i) * radius
             );
 
-            ringGeom.vertices.push(vert);
+            ringPoints.push(vert);
         }
+
+        ringGeom.setFromPoints(ringPoints);
 
         return ringMesh;
     }

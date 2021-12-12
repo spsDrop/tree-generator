@@ -89,7 +89,7 @@ function defaultSettings(){
     return  {
         seed: 0.5608898704217697,
 
-        doLeaves: true,
+        doLeaves: false,
         leafBranchDepth: 2,
         leafScaleFactor: 1,
         leafRelativeScaleFactor: 0.5,
@@ -163,7 +163,7 @@ export default class TreeUI extends React.Component{
         multiplier:{ max: 1, min: -1 },
         length:{ max: 3, min: 1 },
         decay:{ max: 0.4, min: 0 },
-        depth:{ max:12, min:3 },
+        depth:{ max:12, min:1 },
         segments:{ max: 8, min: 2 },
         sections:{ max: 20, min: 4 }
     }

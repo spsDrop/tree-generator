@@ -1,4 +1,16 @@
-import * as T from "../../lib/three";
+import { 
+    WebGLRenderer, 
+    PerspectiveCamera, 
+    PCFSoftShadowMap, 
+    Scene, 
+    SpotLight, 
+    CircleGeometry, 
+    MeshPhongMaterial,
+    DoubleSide,
+    Mesh,
+    Vector3,
+} from 'three';
+import { onNextFrameThrottle } from "../ui/utils/on-next-frame-throttle";
 import { Tree } from './tree.js';
 import { geometryToStl } from "./utils/geometry-to-stl";
 
@@ -6,28 +18,29 @@ import { geometryToStl } from "./utils/geometry-to-stl";
 export class TreeScene{
 
     constructor(){
-        this.renderer = new T.WebGLRenderer({
+        this.renderer = new WebGLRenderer({
             antialias: true
         });
         this.renderer.setSize( window.innerWidth, window.innerHeight );
         this.renderer.setClearColor( 0xffffff );
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = T.PCFSoftShadowMap;
+        this.renderer.shadowMap.type = PCFSoftShadowMap;
         this.rotate = true;
 
         this.setupScene();
+        window.addEventListener('resize', onNextFrameThrottle(() => this.updateSceneSize()));
     }
 
 
     setupScene() {
-        this.scene = new T.Scene();
+        this.scene = new Scene();
 
         this.camera =
-                new T.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.camera.position.set(...this.cameraPosition);
         this.camera.lookAt(this.cameraTarget);
 
-        var light = new T.SpotLight(0xffffff, 0.8);
+        var light = new SpotLight(0xffffff, 0.8);
         light.position.set(60, 62, 20);
         light.target.position.set(0, 0, 0)
         light.castShadow = true;
@@ -40,12 +53,12 @@ export class TreeScene{
         light.shadowMapHeight = 2048;
         this.scene.add(light);
 
-        const planeGeo = new T.CircleGeometry(150, 150);
-        const planeMat = new T.MeshPhongMaterial({
-          side: T.DoubleSide,
+        const planeGeo = new CircleGeometry(150, 150);
+        const planeMat = new MeshPhongMaterial({
+          side: DoubleSide,
           color: 0x8c9788
         });
-        const mesh = new T.Mesh(planeGeo, planeMat);
+        const mesh = new Mesh(planeGeo, planeMat);
         mesh.receiveShadow = true;
         mesh.rotation.x = Math.PI * -.5;
         mesh.position.y = -10;
@@ -54,8 +67,14 @@ export class TreeScene{
         this.light = light;
     };
 
+    updateSceneSize() {
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+    }
+
     cameraPosition = [20, 22, 20];
-    cameraTarget = new T.Vector3(0, 10, 0);
+    cameraTarget = new Vector3(0, 10, 0);
 
     interval = null;
 
