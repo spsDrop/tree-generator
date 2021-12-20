@@ -6,13 +6,20 @@ import {
     Vector3,
     Object3D,
     Float32BufferAttribute,
+    Raycaster,
+    FrontSide,
+    BackSide,
+    ArrowHelper,
+    VertexColors,
+    Color,
+    SphereGeometry,
+    MeshBasicMaterial
 } from 'three';
 import { Leaves } from "./leaves";
 import { applyNoiseOffset, Noise } from "./utils/noise";
 import { RNG } from "./utils/rng";
 import { cloneVerticesWithTransform } from "./utils/clone-vertices-with-transform";
-import {CSG} from './utils/csg'
-import { Matrix4 } from '../../lib/three';
+import { CSG } from './utils/csg';
 
 // Converts from degrees to radians.
 Math.radians = function(degrees) {
@@ -37,25 +44,25 @@ export class Tree{
 
     generateTree(){
         const start = Date.now();
-        var material = new MeshLambertMaterial( {
+        this.obj = new Object3D();
+        this.material = new MeshLambertMaterial( {
             color: 0x85745a,
-            wireframe: false,
+            wireframe: this.settings.wireframe
         } );
 
-        material.side = DoubleSide;
+        this.material.side = DoubleSide;
         //this.leaves = new Leaves();
 
-        const treeMesh = new Mesh( this.generateGeometry(), material );
+        const treeMesh = new Mesh( this.generateGeometry(), this.material );
         treeMesh.castShadow = true;
         treeMesh.receiveShadow = true;
 
-        this.obj = new Object3D();
         this.obj.add(treeMesh);
 
-        if (this.settings.doLeaves) {
-            this.leaves.calculateNormals();
-            this.obj.add(this.leaves.mesh);
-        }
+        // if (this.settings.doLeaves) {
+        //     this.leaves.calculateNormals();
+        //     this.obj.add(this.leaves.mesh);
+        // }
         console.log('Time to generate tree', Date.now() - start);
     }
 
@@ -118,7 +125,6 @@ export class Tree{
             leafBranchDepth,
             leafScaleFactor,
             leafRelativeScaleFactor,
-            segmentsPerBranch,
             branchDepth
         } = this.settings;
 
@@ -139,7 +145,7 @@ export class Tree{
             cloneVerticesWithTransform(ring, geometry);
             this.fillHole(geometry, sectionsPerSegment, 1, 0);
         }
-        
+
         this.mergeGeometry(
             geometry,
             this.generateSection(ring, radius, segmentLength, branchCount, isRight)
@@ -148,68 +154,43 @@ export class Tree{
         branchCount--;
 
         if(branchCount > 0){
-            const leftRing = ring.clone();
-            const branchSegmentLength = segmentLength - segmentLength * branchLengthDecay;
-            const branchRadius = radius - radius * branchRadiusDecay;
-            const leftVariance = this.getRotationVariance()
+            const [ leftBranch ] = this.buildBranch(ring, radius, segmentLength, branchCount, branchLengthDecay, branchRadiusDecay);
 
-            this.rotateRing(leftRing, leftVariance);
-            leftRing.scale.x = leftRing.scale.y = leftRing.scale.z = radius / this.maxRadius;
-            leftRing.translateY(branchSegmentLength);
+            const [rightBranch] = this.buildBranch(ring, radius, segmentLength, branchCount, trunkLengthDecay, trunkRadiusDecay, true);
 
-            const leftBranch = this.generateSection(
-                leftRing, 
-                branchRadius, 
-                branchSegmentLength, 
-                branchCount, 
-                false, 
-                leftVariance
-            );
+            // const branchesGeometry = this.unionBranches(leftBranch, rightBranch);
 
-            const leftBranchMesh = new BufferGeometry();
-            leftBranchMesh.setAttribute('position', new Float32BufferAttribute(leftBranch.vertices, 3));
-            leftBranchMesh.setIndex(leftBranch.faces);
-            leftBranchMesh.computeVertexNormals();
+            // this.mergeGeometry(geometry, branchesGeometry);
 
-            const leftBsp = CSG.fromGeometry(leftBranchMesh);
-
-
-
-            const rightRing = ring.clone();
-            const trunkSegmentLength = segmentLength - segmentLength * trunkLengthDecay;
-            const trunkRadius = radius - radius * trunkRadiusDecay;
-            const rightVariance = this.getRotationVariance();
-
-            this.rotateRing(rightRing, rightVariance, true);
-            rightRing.scale.x = rightRing.scale.y = rightRing.scale.z = radius / this.maxRadius;
-            rightRing.translateY(branchSegmentLength);
-
-            const rightBranch = this.generateSection(
-                rightRing, 
-                trunkRadius, 
-                trunkSegmentLength, 
-                branchCount, 
-                false, 
-                rightVariance
-            );
+            this.mergeGeometry(geometry, leftBranch);
 
             const rightBranchMesh = new BufferGeometry();
-            rightBranchMesh.setAttribute('position', new Float32BufferAttribute(rightBranch.vertices, 3));
-            rightBranchMesh.setIndex(rightBranch.faces);
+            rightBranchMesh.setAttribute('position', new Float32BufferAttribute(geometry.vertices, 3));
+            rightBranchMesh.setIndex(geometry.faces);
             rightBranchMesh.computeVertexNormals();
 
+            
+            const projectionRing = ring.clone();
+            this.rotateRing(projectionRing, this.getRotationVariance(), true, true);
 
-            const rightBsp = CSG.fromGeometry(rightBranchMesh)
+            const intersections = this.projectRing(rightBranchMesh, projectionRing);
 
+            console.log('intersections', intersections);
 
-            const branchesMesh = CSG.toMesh(rightBsp.union(leftBsp), new Matrix4());
-
-            this.mergeGeometry(geometry, {
-                faces: branchesMesh.geometry.index,
-                vertices: branchesMesh.geometry.getAttribute('position')
+            intersections.forEach(({point}) => {
+                const geometry = new SphereGeometry( 0.25, 10, 5 );
+                const material = new MeshBasicMaterial( { color: 0xffff00 } );
+                const sphere = new Mesh( geometry, material );
+                sphere.position.x = point.x;
+                sphere.position.y = point.y;
+                sphere.position.z = point.z;
+                this.obj.add( sphere );
             })
 
-            return trunkGeometry;
+            console.log('geometry', geometry);
+
+
+            return geometry;
 
 
             //this.generateBranch(geometry, branchCount, segmentLength, sectionsPerSegment, radius, leftRing);
@@ -232,6 +213,139 @@ export class Tree{
 
     }
 
+    buildBranch(ring, radius, segmentLength, branchCount, lengthDecay, radiusDecay, isRight = false) {
+        const { sectionsPerSegment } = this.settings;
+
+        const ringClone = ring.clone();
+        const branchSegmentLength = segmentLength - segmentLength * lengthDecay;
+        const branchRadius = radius - radius * radiusDecay;
+        const variance = this.getRotationVariance();
+
+        this.rotateRing(ringClone, variance, isRight);
+        ringClone.scale.x = ringClone.scale.y = ringClone.scale.z = radius / this.maxRadius;
+        ringClone.translateY(branchSegmentLength);
+
+        const branchGeometry = {
+            vertices: [],
+            faces: []
+        };
+
+        branchGeometry.vertices.push(...ring.position.toArray());
+        cloneVerticesWithTransform(ring, branchGeometry);
+        this.fillHole(branchGeometry, sectionsPerSegment, 1, 0);
+
+        this.generateSection(
+            ringClone, 
+            branchRadius, 
+            branchSegmentLength, 
+            branchCount, 
+            isRight, 
+            variance,
+            branchGeometry
+        );
+
+        branchGeometry.vertices.push(...ringClone.position.toArray());
+        const vertCount = branchGeometry.vertices.length / 3;
+        this.fillHole(branchGeometry, sectionsPerSegment, vertCount - 1 - sectionsPerSegment, vertCount - 1);
+
+        return [branchGeometry, branchRadius, branchSegmentLength]
+    }
+
+    unionBranches(leftBranch, rightBranch) {
+        const leftBranchMesh = new BufferGeometry();
+        leftBranchMesh.setAttribute('position', new Float32BufferAttribute(leftBranch.vertices, 3));
+        leftBranchMesh.setIndex(leftBranch.faces);
+        leftBranchMesh.computeVertexNormals();
+
+        const leftBsp = CSG.fromGeometry(leftBranchMesh);
+
+        const rightBranchMesh = new BufferGeometry();
+        rightBranchMesh.setAttribute('position', new Float32BufferAttribute(rightBranch.vertices, 3));
+        rightBranchMesh.setIndex(rightBranch.faces);
+        rightBranchMesh.computeVertexNormals();
+
+
+        const rightBsp = CSG.fromGeometry(rightBranchMesh)
+
+
+        return this.bspToGeom(rightBsp.inverse().union(leftBsp.inverse()));
+    }
+
+    projectRing(targetGeometry, ring) {
+        const ringCopy = ring.clone();
+        const sourceGeom = {vertices: []};
+        ringCopy.scale.multiplyScalar(0.9);
+        cloneVerticesWithTransform(ringCopy, sourceGeom);
+
+        ringCopy.translateY(1);
+        const targetGeom = {vertices: []};
+        cloneVerticesWithTransform(ringCopy, targetGeom);
+
+        console.log('vectors', {
+            sourceGeom,
+            targetGeom
+        })
+
+        const mat = new MeshLambertMaterial( {
+            side: FrontSide
+        } );
+        console.log('sided', mat.side);
+        const targetMesh = new Mesh(targetGeometry, mat);
+
+        const intersections = []
+
+        for (let i = 0; i < sourceGeom.vertices.length; i+=3) {
+            const sourceVerts = sourceGeom.vertices;
+            const targetVerts = targetGeom.vertices;
+            const origin = new Vector3(sourceVerts[i], sourceVerts[i+1], sourceVerts[i+2]);
+            const target = new Vector3(targetVerts[i], targetVerts[i+1], targetVerts[i+2])
+            const rayCaster = new Raycaster(
+                origin, 
+                new Vector3().subVectors(target, origin).normalize(), 
+            )
+
+            this.obj.add(new ArrowHelper(
+                rayCaster.ray.direction, 
+                rayCaster.ray.origin, 
+                20,
+                Math.random() * 0xffffff,
+                1,
+                0.5
+            ));
+
+            intersections.push(rayCaster.intersectObject(targetMesh));
+        }
+
+        return intersections.
+            filter(intersect => intersect.length).
+            map(intersect => intersect[0]);
+    }
+
+    bspToGeom(bsp) {
+        const vertices = [];
+        const faces = [];
+        let vertCount = 0;
+        
+        const polyGroupLength = bsp.polygons.length;
+        for (let polyIndex = 0; polyIndex < polyGroupLength; polyIndex++) {
+            const polyVertices = bsp.polygons[polyIndex].vertices;
+            const vertLength = polyVertices.length;
+            for (let i = 0; i < vertLength; i++) {
+                const vertPos = polyVertices[i].pos;
+                vertices.push(vertPos.x, vertPos.y, vertPos.z);
+                if (i > 1) {
+                    faces.push(vertCount + 0, vertCount + i-1, vertCount + i);
+                }
+            }
+            vertCount = vertices.length/3;
+        }
+
+        return {
+            vertices,
+            faces
+        };
+    }
+
     mergeGeometry(targetGeom, sourceGeom) {
         const vertCount = targetGeom.vertices.length / 3;
         targetGeom.vertices.push(...sourceGeom.vertices);
@@ -239,16 +353,15 @@ export class Tree{
         return targetGeom
     }
 
-    generateSection(ring, radius, segmentLength, branchCount, isRight, variance = 1) {
+    generateSection(ring, radius, segmentLength, branchCount, isRight, variance = 1,  geometry = {
+        vertices: [],
+        faces: [],
+    }) {
         const { 
             branchDepth,
             sectionsPerSegment,
             segmentsPerBranch
         } = this.settings;
-        const geometry = {
-            vertices: [],
-            faces: [],
-        };
 
         for(let i = 0; i < segmentsPerBranch; i++) {
             ring.translateOnAxis(ring.worldToLocal(new Vector3(0,1,0)), segmentLength);
@@ -259,15 +372,13 @@ export class Tree{
 
             cloneVerticesWithTransform(ring, geometry);
 
-            if (geometry.vertices.length / 3 >= sectionsPerSegment * 2) {
-                this.generateSegment(geometry, sectionsPerSegment, 1);
-            }
+            this.generateSegment(geometry, sectionsPerSegment, 1);
         }
 
         return geometry;
     }
 
-    rotateRing(ring, variance, right = false) {
+    rotateRing(ring, variance, right = false, fullRotation = false) {
         const {
             trunkRotationX,
             trunkRotationY,
@@ -277,7 +388,7 @@ export class Tree{
             branchRotationZ,
             segmentsPerBranch,
         } = this.settings;
-        const rotationPerSegment = 1 / segmentsPerBranch;
+        const rotationPerSegment = fullRotation ? 1 : 1 / segmentsPerBranch;
         const xRot = right ? branchRotationX * -1 : trunkRotationX;
         const yRot = right ? branchRotationY * -1 : trunkRotationY;
         const zRot = right ? branchRotationZ * -1 : trunkRotationZ;

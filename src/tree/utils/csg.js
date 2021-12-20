@@ -1,7 +1,7 @@
 /**
  *
  * Copyright (c) 2011 Evan Wallace (http://madebyevan.com/), under the MIT license.
- * THREE.js rework by thrax
+ * js rework by thrax
  *
  * # class CSG
  * Holds a binary space partition tree representing a 3D solid. Two solids can
@@ -14,7 +14,14 @@
  * - Some Refactoring
  * - support for three r130
  */
- import * as THREE from 'three';
+ import {
+     Mesh,
+     Matrix3,
+     BufferGeometry,
+     Vector3,
+     BufferAttribute,
+     Float32BufferAttribute,
+ } from 'three';
  class CSG {
      constructor() {
          this.polygons = [];
@@ -74,6 +81,32 @@
          });
          return csg;
      }
+
+     toIndexedGeometry() {
+        const vertices = [];
+        const faces = [];
+        let vertCount = 0;
+        
+        const polyGroupLength = this.polygons.length;
+        for (let polyIndex = 0; polyIndex < polyGroupLength; polyIndex++) {
+            const polyVertices = this.polygons[polyIndex].vertices;
+            const vertLength = polyVertices.length;
+            for (let i = 0; i < vertLength; i++) {
+                const vertPos = polyVertices[i].pos;
+                vertices.push(vertPos.x, vertPos.y, vertPos.z);
+                if (i > 1) {
+                    faces.push(vertCount + 0, vertCount + i-1, vertCount + i);
+                }
+            }
+            vertCount = vertices.length/3;
+        }
+
+        const geometry = new BufferGeometry();
+        geometry.setAttribute('position', new Float32BufferAttribute(vertices, 3));
+        geometry.setIndex(faces);
+
+        return geometry;
+     }
  }
  // Construct a CSG solid from a list of `Polygon` instances.
  CSG.fromPolygons = function (polygons) {
@@ -128,8 +161,8 @@
      }
      return CSG.fromPolygons(polys);
  };
- CSG.ttvv0 = new THREE.Vector3();
- CSG.tmpm3 = new THREE.Matrix3();
+ CSG.ttvv0 = new Vector3();
+ CSG.tmpm3 = new Matrix3();
  CSG.fromMesh = function (mesh, objectIndex) {
      const csg = CSG.fromGeometry(mesh.geometry, objectIndex);
      CSG.tmpm3.getNormalMatrix(mesh.matrix);
@@ -138,10 +171,10 @@
          for (let j = 0; j < p.vertices.length; j++) {
              let v = p.vertices[j];
              v.pos.copy(CSG.ttvv0
-                 .copy(new THREE.Vector3(v.pos.x, v.pos.y, v.pos.z))
+                 .copy(new Vector3(v.pos.x, v.pos.y, v.pos.z))
                  .applyMatrix4(mesh.matrix));
              v.normal.copy(CSG.ttvv0
-                 .copy(new THREE.Vector3(v.normal.x, v.normal.y, v.normal.z))
+                 .copy(new Vector3(v.normal.x, v.normal.y, v.normal.z))
                  .applyMatrix3(CSG.tmpm3));
          }
      }
@@ -168,12 +201,13 @@
          }
      };
  };
+ CSG.to
  CSG.toMesh = function (csg, toMatrix, toMaterial) {
      let ps = csg.polygons;
      let geom;
      let triCount = 0;
      ps.forEach((p) => (triCount += p.vertices.length - 2));
-     geom = new THREE.BufferGeometry();
+     geom = new BufferGeometry();
      let vertices = CSG.nbuf3(triCount * 3 * 3);
      let normals = CSG.nbuf3(triCount * 3 * 3);
      let colors;
@@ -204,10 +238,10 @@
                      colors.write(pvs[j - 1].color));
          }
      });
-     geom.setAttribute('position', new THREE.BufferAttribute(vertices.array, 3));
-     geom.setAttribute('normal', new THREE.BufferAttribute(normals.array, 3));
+     geom.setAttribute('position', new BufferAttribute(vertices.array, 3));
+     geom.setAttribute('normal', new BufferAttribute(normals.array, 3));
      colors &&
-         geom.setAttribute('color', new THREE.BufferAttribute(colors.array, 3));
+         geom.setAttribute('color', new BufferAttribute(colors.array, 3));
      if (grps.length) {
          let index = [];
          let gbase = 0;
@@ -218,11 +252,11 @@
          }
          geom.setIndex(index);
      }
-     let inv = new THREE.Matrix4().copy(toMatrix).invert();
+     let inv = new Matrix4().copy(toMatrix).invert();
      geom.applyMatrix4(inv);
      geom.computeBoundingSphere();
      geom.computeBoundingBox();
-     let m = new THREE.Mesh(geom, toMaterial);
+     let m = new Mesh(geom, toMaterial);
      m.matrix.copy(toMatrix);
      m.matrix.decompose(m.position, m.quaternion, m.scale);
      m.rotation.setFromQuaternion(m.quaternion);

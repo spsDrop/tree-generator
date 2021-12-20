@@ -119,7 +119,8 @@ function defaultSettings(){
         hidden: false,
         noise: true,
         noiseScale: 1/60,
-        noiseFactor: 0.5
+        noiseFactor: 0.5,
+        wireframe: false,
     };
 };
 
@@ -252,6 +253,12 @@ export default class TreeUI extends React.Component{
         })
     }
 
+    toggleWireFrame = () => {
+        const doWireframe = !this.state.wireframe;
+        this.updateProp('wireframe', doWireframe);
+        this.props.treeScene.toggleWireFrame(doWireframe);
+    }
+
     handleUpdateTree = () => {
         this.updateTree();
     }
@@ -334,6 +341,9 @@ export default class TreeUI extends React.Component{
                             <label>Auto rotate <input type="checkbox" checked={this.state.rotate} onChange={()=>{
                                 this.setState({rotate:!this.state.rotate}, this.handleToggleRotate);
                             }}/></label>
+                        </div>
+                        <div css={sectionStyle}>
+                            <label>Wireframe <input type="checkbox" checked={this.state.wireframe} onChange={this.toggleWireFrame}/></label>
                         </div>
                         <div css={sectionStyle}>
                             <label>Seed <b>{this.state.seed}</b></label>

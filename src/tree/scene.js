@@ -150,6 +150,10 @@ export class TreeScene{
         this.camera.lookAt(this.cameraTarget);
     }
 
+    toggleWireFrame(value) {
+        this.tree.material.wireframe = value;
+    }
+
     frameCount = 0
     fps = 0;
 
