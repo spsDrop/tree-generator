@@ -19,7 +19,6 @@ import { Leaves } from "./leaves";
 import { applyNoiseOffset, Noise } from "./utils/noise";
 import { RNG } from "./utils/rng";
 import { cloneVerticesWithTransform } from "./utils/clone-vertices-with-transform";
-import { CSG } from './utils/csg';
 
 // Converts from degrees to radians.
 Math.radians = function(degrees) {
@@ -158,10 +157,6 @@ export class Tree{
 
             const [rightBranch] = this.buildBranch(ring, radius, segmentLength, branchCount, trunkLengthDecay, trunkRadiusDecay, true);
 
-            // const branchesGeometry = this.unionBranches(leftBranch, rightBranch);
-
-            // this.mergeGeometry(geometry, branchesGeometry);
-
             this.mergeGeometry(geometry, leftBranch);
 
             const rightBranchMesh = new BufferGeometry();
@@ -249,26 +244,6 @@ export class Tree{
         this.fillHole(branchGeometry, sectionsPerSegment, vertCount - 1 - sectionsPerSegment, vertCount - 1);
 
         return [branchGeometry, branchRadius, branchSegmentLength]
-    }
-
-    unionBranches(leftBranch, rightBranch) {
-        const leftBranchMesh = new BufferGeometry();
-        leftBranchMesh.setAttribute('position', new Float32BufferAttribute(leftBranch.vertices, 3));
-        leftBranchMesh.setIndex(leftBranch.faces);
-        leftBranchMesh.computeVertexNormals();
-
-        const leftBsp = CSG.fromGeometry(leftBranchMesh);
-
-        const rightBranchMesh = new BufferGeometry();
-        rightBranchMesh.setAttribute('position', new Float32BufferAttribute(rightBranch.vertices, 3));
-        rightBranchMesh.setIndex(rightBranch.faces);
-        rightBranchMesh.computeVertexNormals();
-
-
-        const rightBsp = CSG.fromGeometry(rightBranchMesh)
-
-
-        return this.bspToGeom(rightBsp.inverse().union(leftBsp.inverse()));
     }
 
     projectRing(targetGeometry, ring) {
