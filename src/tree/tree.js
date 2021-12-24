@@ -155,7 +155,7 @@ export class Tree{
         if(branchCount > 0){
             const [ leftBranch ] = this.buildBranch(ring, radius, segmentLength, branchCount, branchLengthDecay, branchRadiusDecay);
 
-            const [rightBranch] = this.buildBranch(ring, radius, segmentLength, branchCount, trunkLengthDecay, trunkRadiusDecay, true);
+            const [ rightBranch ] = this.buildBranch(ring, radius, segmentLength, branchCount, trunkLengthDecay, trunkRadiusDecay, true);
 
             this.mergeGeometry(geometry, leftBranch);
 
@@ -172,14 +172,16 @@ export class Tree{
 
             console.log('intersections', intersections);
 
-            intersections.forEach(({point}) => {
-                const geometry = new SphereGeometry( 0.25, 10, 5 );
-                const material = new MeshBasicMaterial( { color: 0xffff00 } );
-                const sphere = new Mesh( geometry, material );
-                sphere.position.x = point.x;
-                sphere.position.y = point.y;
-                sphere.position.z = point.z;
-                this.obj.add( sphere );
+            intersections.forEach(({point}, n) => {
+                if (n === 0) {
+                    const geometry = new SphereGeometry( radius, 10, 5 );
+                    const material = new MeshBasicMaterial( { color: 0xffff00 } );
+                    const sphere = new Mesh( geometry, material );
+                    sphere.position.x = point.x;
+                    sphere.position.y = point.y;
+                    sphere.position.z = point.z;
+                    this.obj.add( sphere );
+                }
             })
 
             console.log('geometry', geometry);
@@ -225,10 +227,6 @@ export class Tree{
             faces: []
         };
 
-        branchGeometry.vertices.push(...ring.position.toArray());
-        cloneVerticesWithTransform(ring, branchGeometry);
-        this.fillHole(branchGeometry, sectionsPerSegment, 1, 0);
-
         this.generateSection(
             ringClone, 
             branchRadius, 
@@ -239,32 +237,39 @@ export class Tree{
             branchGeometry
         );
 
-        branchGeometry.vertices.push(...ringClone.position.toArray());
-        const vertCount = branchGeometry.vertices.length / 3;
-        this.fillHole(branchGeometry, sectionsPerSegment, vertCount - 1 - sectionsPerSegment, vertCount - 1);
-
         return [branchGeometry, branchRadius, branchSegmentLength]
+    }
+
+    getIntersectedFaces(point, radius, geometry) {
+        const faceCount = geometry.faces.length / 3;
+        const intersectedFaces = [];
+        for (let i = 0; i < faceCount; i++) {
+            const face = {
+                a: geometry.faces[i],
+                b: geometry.faces[i+1],
+                c: geometry.faces[i+2]
+            }
+
+        }
+    }
+
+    isPointWithinRadius(targetPoint, sourcePoint, radius) {
+        return sourcePoint.distanceTo(targetPoint) <= radius;
     }
 
     projectRing(targetGeometry, ring) {
         const ringCopy = ring.clone();
-        const sourceGeom = {vertices: []};
-        ringCopy.scale.multiplyScalar(0.9);
+        ringCopy.scale.multiplyScalar(1);
+        const sourceGeom = {vertices: ringCopy.position.clone().toArray()};
         cloneVerticesWithTransform(ringCopy, sourceGeom);
 
         ringCopy.translateY(1);
-        const targetGeom = {vertices: []};
+        const targetGeom = {vertices: ringCopy.position.clone().toArray()};
         cloneVerticesWithTransform(ringCopy, targetGeom);
-
-        console.log('vectors', {
-            sourceGeom,
-            targetGeom
-        })
 
         const mat = new MeshLambertMaterial( {
             side: FrontSide
         } );
-        console.log('sided', mat.side);
         const targetMesh = new Mesh(targetGeometry, mat);
 
         const intersections = []
